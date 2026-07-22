@@ -18,7 +18,7 @@
   --bg:#101613; --surface:#1A231E; --surface2:#212C26; --line:#2A362F;
   --text:#EDF2EA; --muted:#8FA096; --blaze:#E63A21; --blaze-soft:#FF6A4F;
   --ok:#7FB56B; --warn:#E0A93A;
-  --nav-h:62px; --safe-b:env(safe-area-inset-bottom,0px); --safe-t:env(safe-area-inset-top,0px);
+  --nav-h:52px; --safe-b:env(safe-area-inset-bottom,0px); --safe-t:env(safe-area-inset-top,0px);
   --font-body:'Barlow',system-ui,sans-serif;
   --font-num:'Barlow Condensed','Barlow',system-ui,sans-serif;
 }
@@ -931,7 +931,7 @@ async function rozetCiz(acik){
 }
 
 /* =============== gezinme & başlangıç =============== */
-const SURUM="1.3.1";
+const SURUM="1.3.2";
 $("#nav").addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
   $$("#nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");
