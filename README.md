@@ -58,7 +58,8 @@ Tek dosyalık bir HTML uygulaması — çerçeve, derleme veya paket yöneticisi
 
 | Sürüm | Öne çıkanlar |
 |-------|--------------|
-| **1.3** | Kano ve kayak eklendi; aktivite tipine göre akıllı otomatik duraklama; iOS güvenli alan ve görünüm yüksekliği düzeltmeleri |
+| **1.4** | iOS'ta ekrana oturma sorunları giderildi: alt menü artık ekranın dibine oturuyor, dokunuşlar şaşmıyor |
+| **1.3** | Kano ve kayak eklendi; aktivite tipine göre akıllı otomatik duraklama; iOS güvenli alan düzeltmeleri |
 | **1.2** | Splash ekranı, ayarlar sekmesi (istatistik, yedekleme, veri silme), PWA (ana ekrana ekle) desteği |
 | **1.1** | Harita katmanı seçici: sokak, uydu, topoğrafya |
 | **1.0** | İlk sürüm: canlı GPS kaydı, otomatik duraklama, yer işaretleme, yükseklik profili, GPX içe/dışa aktarma, günlük/haftalık/aylık istatistik, 10 rozet |
