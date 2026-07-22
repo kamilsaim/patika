@@ -33,7 +33,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--blaze);outline-o
 ::placeholder{color:var(--muted)}
 
 /* ---------- yapı ---------- */
-#app{height:100%;display:flex;flex-direction:column}
+/* iOS: 100% yerine gerçek görünür yükseklik (JS --app-h yazar, yoksa dvh) */
+#app{height:100%;height:100dvh;height:var(--app-h,100dvh);display:flex;flex-direction:column;overflow:hidden}
 .screen{flex:1;display:none;flex-direction:column;overflow:hidden;position:relative}
 .screen.active{display:flex}
 .scroll{flex:1;overflow-y:auto;padding:16px 16px calc(20px + var(--safe-b))}
@@ -930,8 +931,38 @@ async function rozetCiz(acik){
       <div class="halka">${r.ik}</div><b>${r.ad}</b><small>${r.aciklama}</small></div>`).join("");
 }
 
+/* =============== görünüm alanı (iOS güvenli alan) =============== */
+/* iOS'ta height:100% ve env(safe-area-inset-*) uygulama uyandığında/yön değişince
+   bayat değer döndürebiliyor: alt menü ekranın altından yukarıda kalıyor,
+   üst başlık aşağı sarkıyor. Gerçek değerleri ölçüp CSS değişkenlerine yazıyoruz. */
+const vpProbe=document.createElement("div");
+vpProbe.style.cssText="position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;"+
+  "padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)";
+document.body.appendChild(vpProbe);
+let vpT=0,vpB=0,vpH=0;
+function vpOlc(){
+  const cs=getComputedStyle(vpProbe);
+  const t=parseFloat(cs.paddingTop)||0, b=parseFloat(cs.paddingBottom)||0;
+  // uyanma anında iOS 0 dönebiliyor — son geçerli değeri koru
+  if(t>0)vpT=t; if(b>0)vpB=b;
+  const h=window.innerHeight||0;           // klavye açılınca değişmesin diye visualViewport değil
+  if(h>0)vpH=h;
+  const r=document.documentElement.style;
+  r.setProperty("--safe-t",vpT+"px");
+  r.setProperty("--safe-b",vpB+"px");
+  r.setProperty("--app-h",vpH+"px");
+  try{ if(typeof map!=="undefined"&&map)map.invalidateSize();
+       if(typeof detayMap!=="undefined"&&detayMap)detayMap.invalidateSize(); }catch(e){}
+}
+function vpTazele(){ requestAnimationFrame(vpOlc); setTimeout(vpOlc,300); setTimeout(vpOlc,800); }
+vpOlc();
+window.addEventListener("resize",vpTazele);
+window.addEventListener("orientationchange",vpTazele);
+window.addEventListener("pageshow",vpTazele);
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden)vpTazele(); });
+
 /* =============== gezinme & başlangıç =============== */
-const SURUM="1.3.2";
+const SURUM="1.3.3";
 $("#nav").addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
   $$("#nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");
