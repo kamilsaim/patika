@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="splash.png" alt="Patika" width="260">
+<img src="logo.png" alt="Patika" width="260">
 
 # Patika
 
@@ -58,6 +58,7 @@ Tek dosyalık bir HTML uygulaması — çerçeve, derleme veya paket yöneticisi
 
 | Sürüm | Öne çıkanlar |
 |-------|--------------|
+| **1.3** | Kano ve kayak eklendi; aktivite tipine göre akıllı otomatik duraklama; iOS notch düzeltmesi |
 | **1.2** | Splash ekranı, ayarlar sekmesi (istatistik, yedekleme, veri silme), PWA (ana ekrana ekle) desteği |
 | **1.1** | Harita katmanı seçici: sokak, uydu, topoğrafya |
 | **1.0** | İlk sürüm: canlı GPS kaydı, otomatik duraklama, yer işaretleme, yükseklik profili, GPX içe/dışa aktarma, günlük/haftalık/aylık istatistik, 10 rozet |
