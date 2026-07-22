@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#101613">
+<title>Patika — Rota ve Aktivite Takibi</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#101613; --surface:#1A231E; --surface2:#212C26; --line:#2A362F;
+  --text:#EDF2EA; --muted:#8FA096; --blaze:#E63A21; --blaze-soft:#FF6A4F;
+  --ok:#7FB56B; --warn:#E0A93A;
+  --nav-h:62px; --safe-b:env(safe-area-inset-bottom,0px);
+  --font-body:'Barlow',system-ui,sans-serif;
+  --font-num:'Barlow Condensed','Barlow',system-ui,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:15px;
+  -webkit-user-select:none;user-select:none;overscroll-behavior:none}
+button{font-family:inherit;border:0;background:none;color:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:15px;color:var(--text);
+  background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--blaze);outline-offset:0;border-color:transparent}
+::placeholder{color:var(--muted)}
+
+/* ---------- yapı ---------- */
+#app{height:100%;display:flex;flex-direction:column}
+.screen{flex:1;display:none;flex-direction:column;overflow:hidden;position:relative}
+.screen.active{display:flex}
+.scroll{flex:1;overflow-y:auto;padding:16px 16px calc(20px + var(--safe-b))}
+.screen-head{padding:18px 16px 10px;display:flex;align-items:baseline;justify-content:space-between;
+  background:
+    repeating-radial-gradient(circle at 120% -40%, transparent 0 34px, rgba(143,160,150,.06) 34px 35px);
+}
+.screen-head h1{font-family:var(--font-num);font-weight:700;font-size:26px;letter-spacing:.04em;text-transform:uppercase}
+.screen-head .sub{color:var(--muted);font-size:13px}
+
+/* ---------- alt menü ---------- */
+#nav{height:calc(var(--nav-h) + var(--safe-b));padding-bottom:var(--safe-b);
+  display:flex;background:var(--surface);border-top:1px solid var(--line);flex-shrink:0}
+#nav button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  color:var(--muted);font-size:11px;font-weight:500}
+#nav button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#nav button.active{color:var(--text)}
+#nav button.active::after{content:"";width:16px;height:3px;border-radius:2px;margin-top:1px;
+  background:repeating-linear-gradient(90deg,var(--blaze) 0 4px,#fff 4px 8px)}
+
+/* ---------- harita ekranı ---------- */
+#map{position:absolute;inset:0;background:#0b0f0d}
+.leaflet-container{font-family:var(--font-body)}
+.map-top{position:absolute;top:0;left:0;right:0;z-index:500;padding:12px;display:flex;gap:8px;align-items:flex-start;pointer-events:none}
+.map-top>*{pointer-events:auto}
+.chip{background:rgba(16,22,19,.88);backdrop-filter:blur(6px);border:1px solid var(--line);
+  border-radius:12px;padding:8px 12px;font-size:13px;display:flex;align-items:center;gap:6px}
+#gpsChip .dot{width:8px;height:8px;border-radius:50%;background:var(--warn)}
+#gpsChip.iyi .dot{background:var(--ok)}
+#gpsChip.yok .dot{background:var(--blaze)}
+#btnLocate{margin-left:auto;width:40px;height:40px;display:flex;align-items:center;justify-content:center;
+  background:rgba(16,22,19,.88);border:1px solid var(--line);border-radius:12px}
+#btnLocate svg{width:20px;height:20px;stroke:var(--text);fill:none;stroke-width:1.8}
+
+/* kayıt HUD */
+#hud{position:absolute;left:0;right:0;bottom:0;z-index:500;
+  background:rgba(16,22,19,.94);backdrop-filter:blur(10px);border-top:1px solid var(--line);
+  transform:translateY(110%);transition:transform .25s ease;padding-bottom:var(--safe-b)}
+#hud.acik{transform:none}
+#blaze{height:6px;background:repeating-linear-gradient(90deg,var(--blaze) 0 26px,#fff 26px 52px);
+  background-size:52px 6px;opacity:.95}
+#hud.duraklama #blaze{animation:none;background:repeating-linear-gradient(90deg,var(--warn) 0 26px,var(--surface2) 26px 52px)}
+#hud.kayitta #blaze{animation:blazeAkis 1.2s linear infinite}
+@keyframes blazeAkis{to{background-position:52px 0}}
+@media (prefers-reduced-motion:reduce){#hud.kayitta #blaze{animation:none}}
+.hud-grid{display:grid;grid-template-columns:1fr 1fr 1fr;padding:10px 16px 4px;text-align:center}
+.hud-grid .buyuk{grid-column:1/-1;padding:2px 0 6px}
+.hud-num{font-family:var(--font-num);font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.buyuk .hud-num{font-size:72px;letter-spacing:.01em}
+.hud-grid>div:not(.buyuk) .hud-num{font-size:26px}
+.hud-lbl{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
+#pauseChip{display:none;justify-content:center;color:var(--warn);font-size:13px;font-weight:600;padding-bottom:4px}
+#hud.duraklama #pauseChip{display:flex}
+.hud-btns{display:flex;gap:10px;padding:8px 16px 14px}
+.btn{flex:1;border-radius:14px;padding:14px;font-size:15px;font-weight:600;text-align:center}
+.btn-blaze{background:var(--blaze);color:#fff}
+.btn-ghost{background:var(--surface2);border:1px solid var(--line)}
+.btn-warn{background:var(--warn);color:#181302}
+
+/* başlat paneli */
+#startPanel{position:absolute;left:0;right:0;bottom:0;z-index:500;padding:0 16px calc(16px + var(--safe-b));
+  display:flex;flex-direction:column;gap:10px}
+#typeRow{display:flex;gap:8px}
+#typeRow button{flex:1;background:rgba(16,22,19,.88);backdrop-filter:blur(6px);border:1px solid var(--line);
+  border-radius:12px;padding:10px 6px;font-size:13px;font-weight:500;color:var(--muted)}
+#typeRow button.secili{color:var(--text);border-color:var(--blaze);background:rgba(230,58,33,.14)}
+#btnStart{background:var(--blaze);color:#fff;border-radius:16px;padding:16px;font-size:17px;font-weight:700;
+  letter-spacing:.03em;box-shadow:0 6px 24px rgba(230,58,33,.35)}
+
+/* ---------- rota listesi ---------- */
+.kart{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px}
+.kart h3{font-size:15px;font-weight:600;margin-bottom:2px}
+.kart .meta{color:var(--muted);font-size:12px;margin-bottom:8px}
+.kart .satir{display:flex;gap:14px;font-family:var(--font-num);font-weight:600;font-size:17px}
+.kart .satir span small{display:block;font-family:var(--font-body);font-weight:400;color:var(--muted);font-size:11px}
+.bos{color:var(--muted);text-align:center;padding:48px 24px;line-height:1.5}
+.bos b{color:var(--text)}
+
+/* rota detay */
+#detay{position:fixed;inset:0;z-index:1000;background:var(--bg);display:none;flex-direction:column}
+#detay.acik{display:flex}
+.detay-bar{display:flex;align-items:center;gap:8px;padding:12px 12px 8px}
+.detay-bar h2{font-family:var(--font-num);font-size:20px;font-weight:600;flex:1;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ikonbtn{width:38px;height:38px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  background:var(--surface2);border:1px solid var(--line);border-radius:11px}
+.ikonbtn svg{width:19px;height:19px;stroke:var(--text);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#detayMap{height:42%;flex-shrink:0;background:#0b0f0d}
+.istat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 16px 0}
+.istat-grid .kutu{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center}
+.kutu .hud-num{font-size:22px}
+#profil{width:100%;height:110px;display:block;margin-top:12px}
+.detay-alt{padding:0 16px calc(16px + var(--safe-b))}
+
+/* ---------- istatistik ---------- */
+.seg{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:3px;margin-bottom:14px}
+.seg button{flex:1;padding:9px;border-radius:9px;font-size:13px;font-weight:600;color:var(--muted)}
+.seg button.secili{background:var(--surface2);color:var(--text)}
+.ozet{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.ozet .kutu{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px}
+.ozet .kutu .hud-num{font-size:30px}
+.ozet .kutu .hud-lbl{margin-top:4px}
+#grafik{width:100%;height:170px;display:block}
+
+/* ---------- rozetler ---------- */
+#rozetGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.rozet{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 8px;
+  text-align:center;display:flex;flex-direction:column;align-items:center;gap:7px}
+.rozet .halka{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:24px;background:var(--surface2);border:2px dashed var(--line);filter:grayscale(1);opacity:.45}
+.rozet.acik .halka{border:3px solid transparent;filter:none;opacity:1;
+  background:
+    linear-gradient(var(--surface2),var(--surface2)) padding-box,
+    repeating-linear-gradient(45deg,var(--blaze) 0 6px,#fff 6px 12px) border-box}
+.rozet b{font-size:12px;line-height:1.25}
+.rozet small{color:var(--muted);font-size:10.5px;line-height:1.3}
+
+/* ---------- modal & toast ---------- */
+#ortu{position:fixed;inset:0;z-index:2000;background:rgba(6,9,8,.6);display:none;align-items:flex-end}
+#ortu.acik{display:flex}
+#modal{background:var(--surface);border-radius:20px 20px 0 0;width:100%;padding:18px 16px calc(18px + var(--safe-b))}
+#modal h2{font-family:var(--font-num);font-size:20px;font-weight:600;margin-bottom:12px}
+.form-satir{margin-bottom:10px}
+.form-satir label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+#poiTipler{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+#poiTipler button{background:var(--surface2);border:1px solid var(--line);border-radius:11px;
+  padding:8px 2px;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted)}
+#poiTipler button span{font-size:20px}
+#poiTipler button.secili{border-color:var(--blaze);color:var(--text);background:rgba(230,58,33,.12)}
+.modal-btns{display:flex;gap:10px;margin-top:14px}
+#toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + var(--safe-b) + 16px);transform:translateX(-50%) translateY(20px);
+  z-index:3000;background:var(--text);color:var(--bg);font-weight:600;font-size:14px;
+  padding:11px 18px;border-radius:12px;opacity:0;transition:.25s;pointer-events:none;white-space:nowrap;max-width:92vw;
+  overflow:hidden;text-overflow:ellipsis}
+#toast.acik{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.rozet{background:var(--surface2);color:var(--text);border:1px solid var(--blaze)}
+
+/* POI marker */
+.poi-ikon{font-size:20px;text-align:center;line-height:26px;
+  filter:drop-shadow(0 1px 3px rgba(0,0,0,.7))}
+.leaflet-popup-content-wrapper{background:var(--surface);color:var(--text);border-radius:12px;border:1px solid var(--line)}
+.leaflet-popup-tip{background:var(--surface)}
+.leaflet-popup-content{font-family:var(--font-body);font-size:13px;margin:10px 14px}
+.leaflet-popup-content b{display:block;margin-bottom:2px}
+.leaflet-popup-content .pk-sil{color:var(--blaze-soft);font-weight:600;font-size:12px;margin-top:6px;display:inline-block}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- KAYIT / HARİTA -->
+  <section class="screen active" id="ekran-kayit">
+    <div id="map"></div>
+    <div class="map-top">
+      <div class="chip" id="gpsChip"><span class="dot"></span><span id="gpsTxt">GPS aranıyor…</span></div>
+      <button id="btnLocate" aria-label="Konumuma git">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>
+      </button>
+    </div>
+
+    <div id="startPanel">
+      <div id="typeRow">
+        <button data-tip="bisiklet" class="secili">🚲 Bisiklet</button>
+        <button data-tip="yuruyus">🚶 Yürüyüş</button>
+        <button data-tip="kosu">🏃 Koşu</button>
+      </div>
+      <button id="btnStart">KAYDI BAŞLAT</button>
+    </div>
+
+    <div id="hud">
+      <div id="blaze"></div>
+      <div id="pauseChip">⏸ Otomatik durakladı — hareket bekleniyor</div>
+      <div class="hud-grid">
+        <div class="buyuk"><div class="hud-num" id="hHiz">0<small style="font-size:26px"> km/s</small></div><div class="hud-lbl">Anlık hız</div></div>
+        <div><div class="hud-num" id="hMesafe">0,00</div><div class="hud-lbl">km</div></div>
+        <div><div class="hud-num" id="hSure">00:00</div><div class="hud-lbl">Süre</div></div>
+        <div><div class="hud-num" id="hYukseklik">—</div><div class="hud-lbl">Tırmanış m</div></div>
+      </div>
+      <div class="hud-btns">
+        <button class="btn btn-ghost" id="btnPoi">📍 İşaretle</button>
+        <button class="btn btn-warn" id="btnPauseToggle">Duraklat</button>
+        <button class="btn btn-blaze" id="btnStop">Bitir</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ROTALARIM -->
+  <section class="screen" id="ekran-rotalar">
+    <div class="screen-head">
+      <h1>Rotalarım</h1>
+      <button class="ikonbtn" id="btnImport" aria-label="GPX içe aktar">
+        <svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg>
+      </button>
+      <input type="file" id="gpxFile" accept=".gpx" hidden>
+    </div>
+    <div class="scroll" id="rotaListe"></div>
+  </section>
+
+  <!-- İSTATİSTİK -->
+  <section class="screen" id="ekran-istatistik">
+    <div class="screen-head"><h1>İstatistik</h1><span class="sub" id="istTarih"></span></div>
+    <div class="scroll">
+      <div class="seg" id="periyot">
+        <button data-p="gun" class="secili">Günlük</button>
+        <button data-p="hafta">Haftalık</button>
+        <button data-p="ay">Aylık</button>
+      </div>
+      <div class="ozet">
+        <div class="kutu"><div class="hud-num" id="iKm">0</div><div class="hud-lbl">Toplam km</div></div>
+        <div class="kutu"><div class="hud-num" id="iTirmanis">0</div><div class="hud-lbl">Tırmanış m</div></div>
+        <div class="kutu"><div class="hud-num" id="iSurus">0s 0d</div><div class="hud-lbl">Sürüş süresi</div></div>
+        <div class="kutu"><div class="hud-num" id="iYuruyus">0s 0d</div><div class="hud-lbl">Yürüyüş / koşu</div></div>
+      </div>
+      <canvas id="grafik"></canvas>
+    </div>
+  </section>
+
+  <!-- ROZETLER -->
+  <section class="screen" id="ekran-rozetler">
+    <div class="screen-head"><h1>Rozetler</h1><span class="sub" id="rozetSayi"></span></div>
+    <div class="scroll"><div id="rozetGrid"></div></div>
+  </section>
+
+  <!-- ALT MENÜ -->
+  <nav id="nav">
+    <button data-ekran="kayit" class="active">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/></svg>
+      Kayıt</button>
+    <button data-ekran="rotalar">
+      <svg viewBox="0 0 24 24"><path d="M5 20c0-6 4-6 7-9s2-7 2-7M14 4l1.5 3L19 8"/><circle cx="5" cy="20" r="1.6" fill="currentColor" stroke="none"/></svg>
+      Rotalar</button>
+    <button data-ekran="istatistik">
+      <svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg>
+      İstatistik</button>
+    <button data-ekran="rozetler">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="6"/><path d="M8 14l-2 7 6-3 6 3-2-7"/></svg>
+      Rozetler</button>
+  </nav>
+</div>
+
+<!-- ROTA DETAY -->
+<div id="detay">
+  <div class="detay-bar">
+    <button class="ikonbtn" id="btnDetayKapat"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <h2 id="detayBaslik"></h2>
+    <button class="ikonbtn" id="btnGpx" aria-label="GPX dışa aktar"><svg viewBox="0 0 24 24"><path d="M12 15V3M7 8l5-5 5 5M4 21h16"/></svg></button>
+    <button class="ikonbtn" id="btnSil" aria-label="Sil"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14"/></svg></button>
+  </div>
+  <div id="detayMap"></div>
+  <div class="scroll detay-alt">
+    <div class="istat-grid" id="detayIstat" style="padding-left:0;padding-right:0"></div>
+    <canvas id="profil"></canvas>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div id="ortu"><div id="modal"></div></div>
+<div id="toast"></div>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+/* =============== yardımcılar =============== */
+const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
+const AY=["Oca","Şub","Mar","Nis","May","Haz","Tem","Ağu","Eyl","Eki","Kas","Ara"];
+const TIP={bisiklet:{ad:"Bisiklet",ik:"🚲"},yuruyus:{ad:"Yürüyüş",ik:"🚶"},kosu:{ad:"Koşu",ik:"🏃"}};
+const POI_TIP={kamp:{ad:"Kamp",ik:"⛺"},su:{ad:"Su",ik:"💧"},manzara:{ad:"Manzara",ik:"🏞️"},tehlike:{ad:"Tehlike",ik:"⚠️"},not:{ad:"Not",ik:"📌"}};
+const fmtKm=m=>(m/1000).toLocaleString("tr-TR",{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtSure=s=>{s=Math.floor(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),sn=s%60;
+  return h?`${h}:${String(m).padStart(2,"0")}:${String(sn).padStart(2,"0")}`:`${String(m).padStart(2,"0")}:${String(sn).padStart(2,"0")}`};
+const fmtSaat=s=>{const h=Math.floor(s/3600),m=Math.round(s%3600/60);return `${h}s ${m}d`};
+const fmtTarih=d=>{d=new Date(d);return `${d.getDate()} ${AY[d.getMonth()]} ${d.getFullYear()} · ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`};
+function mesafe(a,b){const R=6371000,r=x=>x*Math.PI/180;
+  const dLat=r(b[0]-a[0]),dLon=r(b[1]-a[1]);
+  const h=Math.sin(dLat/2)**2+Math.cos(r(a[0]))*Math.cos(r(b[0]))*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(h));}
+let toastZ;
+function toast(msg,rozet){const t=$("#toast");t.textContent=msg;t.className=rozet?"acik rozet":"acik";
+  clearTimeout(toastZ);toastZ=setTimeout(()=>t.className="",2600);}
+
+/* =============== IndexedDB =============== */
+let db;
+function dbAc(){return new Promise((res,rej)=>{
+  const rq=indexedDB.open("patikaDB",1);
+  rq.onupgradeneeded=e=>{const d=e.target.result;
+    d.createObjectStore("aktiviteler",{keyPath:"id"});
+    d.createObjectStore("pois",{keyPath:"id"});
+    d.createObjectStore("meta",{keyPath:"k"});};
+  rq.onsuccess=e=>{db=e.target.result;res()};rq.onerror=rej;});}
+const dbYaz=(st,v)=>new Promise((res,rej)=>{const t=db.transaction(st,"readwrite");t.objectStore(st).put(v);t.oncomplete=res;t.onerror=rej;});
+const dbSil=(st,id)=>new Promise((res,rej)=>{const t=db.transaction(st,"readwrite");t.objectStore(st).delete(id);t.oncomplete=res;t.onerror=rej;});
+const dbTum=st=>new Promise((res,rej)=>{const rq=db.transaction(st).objectStore(st).getAll();rq.onsuccess=()=>res(rq.result);rq.onerror=rej;});
+const dbAl=(st,id)=>new Promise((res,rej)=>{const rq=db.transaction(st).objectStore(st).get(id);rq.onsuccess=()=>res(rq.result);rq.onerror=rej;});
+
+/* =============== harita =============== */
+let map, izKatman, poiKatman, konumIsaret, dogrulukHalka, sonKonum=null;
+function haritaKur(){
+  map=L.map("map",{zoomControl:false,attributionControl:true}).setView([38.72,35.49],13);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
+  izKatman=L.polyline([],{color:"#E63A21",weight:4,opacity:.95}).addTo(map);
+  poiKatman=L.layerGroup().addTo(map);
+  map.on("contextmenu",e=>poiModalAc(e.latlng.lat,e.latlng.lng)); // uzun basış
+  $("#btnLocate").onclick=()=>{if(sonKonum)map.setView(sonKonum,16);};
+}
+function poiIkon(tip){return L.divIcon({className:"poi-ikon",html:POI_TIP[tip].ik,iconSize:[26,26],iconAnchor:[13,13]});}
+async function poileriCiz(){
+  poiKatman.clearLayers();
+  (await dbTum("pois")).forEach(p=>{
+    L.marker([p.lat,p.lng],{icon:poiIkon(p.tip)}).addTo(poiKatman)
+     .bindPopup(`<b>${POI_TIP[p.tip].ik} ${POI_TIP[p.tip].ad}</b>${p.not?p.not:""}<br>
+       <span class="pk-sil" onclick="poiSil('${p.id}')">Sil</span>`);});
+}
+async function poiSil(id){await dbSil("pois",id);poileriCiz();toast("İşaret silindi");}
+
+/* =============== GPS izleme =============== */
+let watchId=null, wakeLock=null;
+function gpsBaslat(){
+  if(!navigator.geolocation){$("#gpsTxt").textContent="GPS desteklenmiyor";return;}
+  watchId=navigator.geolocation.watchPosition(gpsNokta,gpsHata,
+    {enableHighAccuracy:true,maximumAge:0,timeout:15000});
+}
+function gpsHata(e){
+  const c=$("#gpsChip");c.className="chip yok";
+  $("#gpsTxt").textContent=e.code===1?"Konum izni verilmedi":"GPS sinyali yok";
+}
+async function ekranKilidi(al){
+  try{if(al&&"wakeLock" in navigator)wakeLock=await navigator.wakeLock.request("screen");
+      else if(wakeLock){wakeLock.release();wakeLock=null;}}catch(_){}}
+document.addEventListener("visibilitychange",()=>{if(kayit.aktif&&document.visibilityState==="visible")ekranKilidi(true);});
+
+/* =============== kayıt motoru =============== */
+const kayit={aktif:false,tip:"bisiklet",noktalar:[],baslangic:0,hareketSn:0,
+  sonT:0,duraklama:false,elleDurdu:false,tirmanis:0,sonEle:null,maxHiz:0,durakSayac:0};
+let hudZ=null;
+
+function kaydiBaslat(){
+  if(!sonKonum){toast("GPS bekleniyor, birazdan tekrar dene");return;}
+  Object.assign(kayit,{aktif:true,noktalar:[],baslangic:Date.now(),hareketSn:0,
+    sonT:Date.now(),duraklama:false,elleDurdu:false,tirmanis:0,sonEle:null,maxHiz:0,durakSayac:0});
+  izKatman.setLatLngs([]);
+  $("#startPanel").style.display="none";
+  const h=$("#hud");h.classList.add("acik","kayitta");h.classList.remove("duraklama");
+  ekranKilidi(true);
+  hudZ=setInterval(hudGuncelle,1000);
+  toast(`${TIP[kayit.tip].ik} Kayıt başladı`);
+}
+function gpsNokta(pos){
+  const c=pos.coords, t=pos.timestamp;
+  sonKonum=[c.latitude,c.longitude];
+  const chip=$("#gpsChip");
+  chip.className="chip"+(c.accuracy<=20?" iyi":"");
+  $("#gpsTxt").textContent=c.accuracy<=20?"GPS iyi":`GPS ±${Math.round(c.accuracy)} m`;
+  if(!konumIsaret){
+    konumIsaret=L.circleMarker(sonKonum,{radius:7,color:"#fff",weight:2,fillColor:"#E63A21",fillOpacity:1}).addTo(map);
+    dogrulukHalka=L.circle(sonKonum,{radius:c.accuracy,color:"#E63A21",weight:1,opacity:.3,fillOpacity:.08}).addTo(map);
+    map.setView(sonKonum,16);
+  }else{konumIsaret.setLatLng(sonKonum);dogrulukHalka.setLatLng(sonKonum).setRadius(c.accuracy);}
+
+  if(!kayit.aktif||kayit.elleDurdu)return;
+  if(c.accuracy>35)return; // kötü nokta atla
+
+  const n=kayit.noktalar, yeni=[c.latitude,c.longitude,c.altitude,t];
+  if(n.length===0){n.push(yeni);kayit.sonT=t;return;}
+
+  const onceki=n[n.length-1];
+  const d=mesafe(onceki,yeni), dt=(t-onceki[3])/1000;
+  if(dt<=0)return;
+  const hiz=d/dt; // m/s
+
+  // otomatik duraklama: 0.55 m/s (~2 km/s) altı 6 sn
+  if(hiz<0.55){kayit.durakSayac+=dt;
+    if(kayit.durakSayac>=6&&!kayit.duraklama){kayit.duraklama=true;$("#hud").classList.add("duraklama");}}
+  else{kayit.durakSayac=0;
+    if(kayit.duraklama){kayit.duraklama=false;$("#hud").classList.remove("duraklama");toast("▶ Devam ediliyor");}}
+
+  if(kayit.duraklama){kayit.sonT=t;return;}
+  if(d<2)return; // GPS titremesi
+
+  n.push(yeni);
+  izKatman.addLatLng([yeni[0],yeni[1]]);
+  map.panTo(sonKonum,{animate:true});
+  kayit.hareketSn+=dt;
+  if(hiz*3.6>kayit.maxHiz&&hiz*3.6<90)kayit.maxHiz=hiz*3.6;
+
+  // tırmanış (yumuşatılmış)
+  if(c.altitude!=null){
+    if(kayit.sonEle==null)kayit.sonEle=c.altitude;
+    else{const fark=c.altitude-kayit.sonEle;
+      if(Math.abs(fark)>=2){if(fark>0)kayit.tirmanis+=fark;kayit.sonEle=c.altitude;}}}
+
+  $("#hHiz").innerHTML=(hiz*3.6).toLocaleString("tr-TR",{maximumFractionDigits:1})+'<small style="font-size:26px"> km/s</small>';
+}
+function toplamMesafe(n){let t=0;for(let i=1;i<n.length;i++)t+=mesafe(n[i-1],n[i]);return t;}
+function hudGuncelle(){
+  if(!kayit.aktif)return;
+  if(kayit.duraklama||kayit.elleDurdu)$("#hHiz").innerHTML='0<small style="font-size:26px"> km/s</small>';
+  $("#hMesafe").textContent=fmtKm(toplamMesafe(kayit.noktalar));
+  $("#hSure").textContent=fmtSure(kayit.hareketSn);
+  $("#hYukseklik").textContent=kayit.sonEle==null?"—":Math.round(kayit.tirmanis);
+}
+function elleDuraklat(){
+  kayit.elleDurdu=!kayit.elleDurdu;
+  $("#btnPauseToggle").textContent=kayit.elleDurdu?"Devam Et":"Duraklat";
+  $("#hud").classList.toggle("duraklama",kayit.elleDurdu);
+  if(!kayit.elleDurdu)kayit.durakSayac=0;
+}
+async function kaydiBitir(){
+  clearInterval(hudZ);ekranKilidi(false);
+  const n=kayit.noktalar, mes=toplamMesafe(n);
+  $("#hud").classList.remove("acik","kayitta","duraklama");
+  $("#startPanel").style.display="flex";
+  $("#btnPauseToggle").textContent="Duraklat";
+  kayit.aktif=false;
+  if(n.length<2||mes<30){toast("Kayıt çok kısa, kaydedilmedi");izKatman.setLatLngs([]);return;}
+  kayitModalAc(mes);
+}
+</script>
+<script>
+/* =============== modal altyapısı =============== */
+function modalAc(html){$("#modal").innerHTML=html;$("#ortu").classList.add("acik");}
+function modalKapat(){$("#ortu").classList.remove("acik");}
+$("#ortu").addEventListener("click",e=>{if(e.target.id==="ortu")modalKapat();});
+
+/* kayıt sonu: isim ver & kaydet */
+function kayitModalAc(mes){
+  modalAc(`<h2>Aktiviteyi Kaydet</h2>
+    <div class="form-satir"><label>Rota adı</label>
+      <input id="mAd" value="${TIP[kayit.tip].ad} ${fmtKm(mes)} km" maxlength="60"></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" id="mVazgec">Sil</button>
+      <button class="btn btn-blaze" id="mKaydet">Kaydet</button></div>`);
+  $("#mVazgec").onclick=()=>{modalKapat();izKatman.setLatLngs([]);toast("Kayıt silindi");};
+  $("#mKaydet").onclick=async()=>{
+    const n=kayit.noktalar;
+    const akt={id:"a"+Date.now(),ad:$("#mAd").value.trim()||"Aktivite",tip:kayit.tip,
+      tarih:kayit.baslangic,noktalar:n,mesafe:toplamMesafe(n),
+      hareketSn:Math.round(kayit.hareketSn),gecenSn:Math.round((Date.now()-kayit.baslangic)/1000),
+      tirmanis:Math.round(kayit.tirmanis),maxHiz:Math.round(kayit.maxHiz*10)/10};
+    akt.ortHiz=akt.hareketSn>0?Math.round(akt.mesafe/akt.hareketSn*3.6*10)/10:0;
+    await dbYaz("aktiviteler",akt);
+    modalKapat();izKatman.setLatLngs([]);
+    toast("✔ Rota kaydedildi");
+    rozetKontrol();rotaListeCiz();istatCiz();
+  };
+}
+
+/* =============== POI =============== */
+let poiSecTip="kamp";
+function poiModalAc(lat,lng){
+  if(lat==null){if(!sonKonum){toast("Konum henüz alınamadı");return;}[lat,lng]=sonKonum;}
+  poiSecTip="kamp";
+  modalAc(`<h2>Yer İşaretle</h2>
+    <div class="form-satir"><label>Tür</label><div id="poiTipler">
+      ${Object.entries(POI_TIP).map(([k,v])=>
+        `<button data-t="${k}" class="${k==="kamp"?"secili":""}"><span>${v.ik}</span>${v.ad}</button>`).join("")}
+    </div></div>
+    <div class="form-satir"><label>Yorum</label>
+      <textarea id="mNot" rows="2" placeholder="Örn: Düz zemin, su kaynağına 200 m, rüzgâr alıyor"></textarea></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" id="mVazgec">Vazgeç</button>
+      <button class="btn btn-blaze" id="mEkle">İşaretle</button></div>`);
+  $$("#poiTipler button").forEach(b=>b.onclick=()=>{
+    $$("#poiTipler button").forEach(x=>x.classList.remove("secili"));
+    b.classList.add("secili");poiSecTip=b.dataset.t;});
+  $("#mVazgec").onclick=modalKapat;
+  $("#mEkle").onclick=async()=>{
+    await dbYaz("pois",{id:"p"+Date.now(),lat,lng,tip:poiSecTip,
+      not:$("#mNot").value.trim(),tarih:Date.now()});
+    modalKapat();poileriCiz();toast(POI_TIP[poiSecTip].ik+" İşaret eklendi");rozetKontrol();
+  };
+}
+
+/* =============== rota listesi & detay =============== */
+async function rotaListeCiz(){
+  const liste=$("#rotaListe"), akts=(await dbTum("aktiviteler")).sort((a,b)=>b.tarih-a.tarih);
+  if(!akts.length){liste.innerHTML=`<div class="bos"><b>Henüz kayıtlı rota yok.</b><br>
+    Kayıt sekmesinden ilk aktiviteni başlat ya da sağ üstten GPX dosyası içe aktar.</div>`;return;}
+  liste.innerHTML=akts.map(a=>`<div class="kart" onclick="detayAc('${a.id}')">
+    <h3>${TIP[a.tip].ik} ${a.ad}</h3>
+    <div class="meta">${fmtTarih(a.tarih)}</div>
+    <div class="satir">
+      <span>${fmtKm(a.mesafe)}<small>km</small></span>
+      <span>${fmtSure(a.hareketSn)}<small>süre</small></span>
+      <span>${a.ortHiz}<small>ort km/s</small></span>
+      <span>${a.tirmanis}<small>tırmanış m</small></span>
+    </div></div>`).join("");
+}
+let detayMap=null, aktifDetay=null;
+async function detayAc(id){
+  const a=await dbAl("aktiviteler",id);if(!a)return;
+  aktifDetay=a;
+  $("#detayBaslik").textContent=a.ad;
+  $("#detay").classList.add("acik");
+  if(!detayMap){detayMap=L.map("detayMap",{zoomControl:false});
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(detayMap);
+    detayMap._iz=L.polyline([],{color:"#E63A21",weight:4}).addTo(detayMap);}
+  setTimeout(()=>{detayMap.invalidateSize();
+    const ll=a.noktalar.map(p=>[p[0],p[1]]);
+    detayMap._iz.setLatLngs(ll);
+    detayMap.fitBounds(L.latLngBounds(ll),{padding:[24,24]});},60);
+  $("#detayIstat").innerHTML=[
+    [fmtKm(a.mesafe),"km"],[fmtSure(a.hareketSn),"hareket"],[fmtSure(a.gecenSn),"toplam"],
+    [a.ortHiz,"ort km/s"],[a.maxHiz,"maks km/s"],[a.tirmanis,"tırmanış m"]
+  ].map(([v,l])=>`<div class="kutu"><div class="hud-num">${v}</div><div class="hud-lbl">${l}</div></div>`).join("");
+  profilCiz(a);
+}
+$("#btnDetayKapat").onclick=()=>$("#detay").classList.remove("acik");
+$("#btnSil").onclick=async()=>{
+  if(!aktifDetay)return;
+  if(!confirm("Bu rota silinsin mi?"))return;
+  await dbSil("aktiviteler",aktifDetay.id);
+  $("#detay").classList.remove("acik");
+  rotaListeCiz();istatCiz();toast("Rota silindi");
+};
+
+/* yükseklik profili */
+function profilCiz(a){
+  const cv=$("#profil"),dpr=devicePixelRatio||1;
+  cv.width=cv.clientWidth*dpr;cv.height=110*dpr;
+  const ctx=cv.getContext("2d");ctx.scale(dpr,dpr);
+  const W=cv.clientWidth,H=110;
+  ctx.clearRect(0,0,W,H);
+  const eles=a.noktalar.map(p=>p[2]).filter(e=>e!=null);
+  if(eles.length<5){ctx.fillStyle="#8FA096";ctx.font="12px Barlow";
+    ctx.fillText("Bu kayıtta yükseklik verisi yok",8,20);return;}
+  // mesafeye göre örnekle
+  let dx=[0];for(let i=1;i<a.noktalar.length;i++)dx.push(dx[i-1]+mesafe(a.noktalar[i-1],a.noktalar[i]));
+  const pts=a.noktalar.map((p,i)=>({d:dx[i],e:p[2]})).filter(p=>p.e!=null);
+  const min=Math.min(...eles),max=Math.max(...eles),span=Math.max(max-min,10),top=14,bot=H-18;
+  ctx.beginPath();
+  pts.forEach((p,i)=>{const x=p.d/dx[dx.length-1]*(W-8)+4,
+    y=bot-(p.e-min)/span*(bot-top);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+  ctx.strokeStyle="#E63A21";ctx.lineWidth=2;ctx.stroke();
+  ctx.lineTo(W-4,bot);ctx.lineTo(4,bot);ctx.closePath();
+  ctx.fillStyle="rgba(230,58,33,.14)";ctx.fill();
+  ctx.fillStyle="#8FA096";ctx.font="11px Barlow";
+  ctx.fillText(`${Math.round(max)} m`,4,12);ctx.fillText(`${Math.round(min)} m`,4,H-5);
+}
+
+/* =============== GPX dışa / içe =============== */
+$("#btnGpx").onclick=async()=>{
+  const a=aktifDetay;if(!a)return;
+  const pois=(await dbTum("pois"));
+  const esc=s=>s.replace(/[<>&"]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[c]));
+  let g=`<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Patika" xmlns="http://www.topografix.com/GPX/1/1">
+<metadata><name>${esc(a.ad)}</name><time>${new Date(a.tarih).toISOString()}</time></metadata>
+`;
+  pois.forEach(p=>{g+=`<wpt lat="${p.lat}" lon="${p.lng}"><name>${esc(POI_TIP[p.tip].ad)}</name>`+
+    (p.not?`<desc>${esc(p.not)}</desc>`:"")+`</wpt>\n`;});
+  g+=`<trk><name>${esc(a.ad)}</name><type>${a.tip}</type><trkseg>\n`;
+  a.noktalar.forEach(p=>{g+=`<trkpt lat="${p[0]}" lon="${p[1]}">`+
+    (p[2]!=null?`<ele>${Math.round(p[2]*10)/10}</ele>`:"")+
+    `<time>${new Date(p[3]).toISOString()}</time></trkpt>\n`;});
+  g+=`</trkseg></trk></gpx>`;
+  const blob=new Blob([g],{type:"application/gpx+xml"});
+  const u=URL.createObjectURL(blob),l=document.createElement("a");
+  l.href=u;l.download=a.ad.replace(/[^\wğüşöçıİĞÜŞÖÇ ]/g,"").trim().replace(/ +/g,"_")+".gpx";
+  l.click();URL.revokeObjectURL(u);
+  toast("GPX indirildi");
+};
+$("#btnImport").onclick=()=>$("#gpxFile").click();
+$("#gpxFile").addEventListener("change",async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{
+    const xml=new DOMParser().parseFromString(await f.text(),"text/xml");
+    const trkpts=[...xml.querySelectorAll("trkpt")];
+    if(trkpts.length<2)throw 0;
+    const noktalar=trkpts.map(p=>{
+      const ele=p.querySelector("ele"),t=p.querySelector("time");
+      return [parseFloat(p.getAttribute("lat")),parseFloat(p.getAttribute("lon")),
+        ele?parseFloat(ele.textContent):null,t?Date.parse(t.textContent):Date.now()];});
+    let mes=0,tir=0,sonE=null;
+    for(let i=1;i<noktalar.length;i++)mes+=mesafe(noktalar[i-1],noktalar[i]);
+    noktalar.forEach(p=>{if(p[2]!=null){if(sonE!=null&&p[2]-sonE>=2)tir+=p[2]-sonE;
+      if(sonE==null||Math.abs(p[2]-sonE)>=2)sonE=p[2];}});
+    const sn=Math.max(1,Math.round((noktalar[noktalar.length-1][3]-noktalar[0][3])/1000));
+    const ad=xml.querySelector("trk name, metadata name")?.textContent?.trim()||f.name.replace(/\.gpx$/i,"");
+    const akt={id:"a"+Date.now(),ad,tip:"bisiklet",tarih:noktalar[0][3],noktalar,mesafe:mes,
+      hareketSn:sn,gecenSn:sn,tirmanis:Math.round(tir),
+      maxHiz:0,ortHiz:Math.round(mes/sn*3.6*10)/10};
+    await dbYaz("aktiviteler",akt);
+    // wpt'leri de al
+    for(const w of xml.querySelectorAll("wpt")){
+      const adW=w.querySelector("name")?.textContent||"";
+      const tip=Object.entries(POI_TIP).find(([k,v])=>v.ad===adW)?.[0]||"not";
+      await dbYaz("pois",{id:"p"+Date.now()+Math.random().toString(36).slice(2,6),
+        lat:parseFloat(w.getAttribute("lat")),lng:parseFloat(w.getAttribute("lon")),
+        tip,not:w.querySelector("desc")?.textContent||"",tarih:Date.now()});}
+    rotaListeCiz();poileriCiz();toast("GPX içe aktarıldı: "+ad);
+  }catch(_){toast("GPX okunamadı");}
+  e.target.value="";
+});
+</script>
+<script>
+/* =============== istatistik =============== */
+let periyot="gun";
+$("#periyot").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  $$("#periyot button").forEach(x=>x.classList.remove("secili"));
+  b.classList.add("secili");periyot=b.dataset.p;istatCiz();
+});
+function gunAnahtar(d){d=new Date(d);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+async function istatCiz(){
+  const akts=await dbTum("aktiviteler"), simdi=new Date();
+  let bas, dilimler=[], dilimAd=[];
+  if(periyot==="gun"){ // son 7 gün, günlük çubuklar
+    bas=new Date(simdi);bas.setDate(bas.getDate()-6);bas.setHours(0,0,0,0);
+    for(let i=0;i<7;i++){const d=new Date(bas);d.setDate(d.getDate()+i);
+      dilimler.push([+d,+d+86400000]);dilimAd.push(["Pz","Pt","Sa","Ça","Pe","Cu","Ct"][d.getDay()]);}
+    $("#istTarih").textContent="Son 7 gün";
+  }else if(periyot==="hafta"){ // son 8 hafta
+    bas=new Date(simdi);bas.setDate(bas.getDate()-simdi.getDay()+1-49);bas.setHours(0,0,0,0);
+    for(let i=0;i<8;i++){const d=+bas+i*7*86400000;
+      dilimler.push([d,d+7*86400000]);dilimAd.push(new Date(d).getDate()+" "+AY[new Date(d).getMonth()]);}
+    $("#istTarih").textContent="Son 8 hafta";
+  }else{ // son 6 ay
+    dilimler=[];for(let i=5;i>=0;i--){const d=new Date(simdi.getFullYear(),simdi.getMonth()-i,1);
+      dilimler.push([+d,+new Date(d.getFullYear(),d.getMonth()+1,1)]);dilimAd.push(AY[d.getMonth()]);}
+    bas=new Date(dilimler[0][0]);
+    $("#istTarih").textContent="Son 6 ay";
+  }
+  const donem=akts.filter(a=>a.tarih>=+bas);
+  const km=donem.reduce((s,a)=>s+a.mesafe,0)/1000;
+  const tir=donem.reduce((s,a)=>s+(a.tirmanis||0),0);
+  const surus=donem.filter(a=>a.tip==="bisiklet").reduce((s,a)=>s+a.hareketSn,0);
+  const yuru=donem.filter(a=>a.tip!=="bisiklet").reduce((s,a)=>s+a.hareketSn,0);
+  $("#iKm").textContent=km.toLocaleString("tr-TR",{maximumFractionDigits:1});
+  $("#iTirmanis").textContent=Math.round(tir).toLocaleString("tr-TR");
+  $("#iSurus").textContent=fmtSaat(surus);
+  $("#iYuruyus").textContent=fmtSaat(yuru);
+
+  // çubuk grafik
+  const cv=$("#grafik"),dpr=devicePixelRatio||1;
+  cv.width=cv.clientWidth*dpr;cv.height=170*dpr;
+  const ctx=cv.getContext("2d");ctx.scale(dpr,dpr);
+  const W=cv.clientWidth,H=170,alt=H-22,ust=10;
+  ctx.clearRect(0,0,W,H);
+  const degerler=dilimler.map(([a,b])=>
+    akts.filter(x=>x.tarih>=a&&x.tarih<b).reduce((s,x)=>s+x.mesafe,0)/1000);
+  const mx=Math.max(...degerler,1);
+  const bw=Math.min(36,(W-16)/dilimler.length-8);
+  degerler.forEach((v,i)=>{
+    const x=8+i*((W-16)/dilimler.length)+((W-16)/dilimler.length-bw)/2;
+    const h=v/mx*(alt-ust);
+    ctx.fillStyle=v>0?"#E63A21":"#2A362F";
+    ctx.beginPath();ctx.roundRect(x,alt-Math.max(h,3),bw,Math.max(h,3),3);ctx.fill();
+    ctx.fillStyle="#8FA096";ctx.font="10px Barlow";ctx.textAlign="center";
+    ctx.fillText(dilimAd[i],x+bw/2,H-8);
+    if(v>0){ctx.fillStyle="#EDF2EA";ctx.font="600 10px Barlow";
+      ctx.fillText(v<10?v.toFixed(1):Math.round(v),x+bw/2,alt-Math.max(h,3)-4);}
+  });
+}
+
+/* =============== rozetler =============== */
+const ROZETLER=[
+ {id:"ilk",ik:"🎉",ad:"İlk Adım",aciklama:"İlk aktiviteni tamamla",
+  test:s=>s.adet>=1},
+ {id:"on",ik:"🔟",ad:"Onluk",aciklama:"Tek aktivitede 10 km",
+  test:s=>s.enUzun>=10000},
+ {id:"elli",ik:"💪",ad:"Yarım Yüz",aciklama:"Tek aktivitede 50 km",
+  test:s=>s.enUzun>=50000},
+ {id:"t100",ik:"🛣️",ad:"100 Kulübü",aciklama:"Toplam 100 km",
+  test:s=>s.toplam>=100000},
+ {id:"t500",ik:"🏆",ad:"500 Kulübü",aciklama:"Toplam 500 km",
+  test:s=>s.toplam>=500000},
+ {id:"kamp",ik:"⛺",ad:"Kampçı",aciklama:"İlk kamp yerini işaretle",
+  test:s=>s.kamp>=1},
+ {id:"harita",ik:"🗺️",ad:"Kartograf",aciklama:"10 yer işaretle",
+  test:s=>s.poi>=10},
+ {id:"tirmanis",ik:"⛰️",ad:"Tırmanışçı",aciklama:"Tek aktivitede 500 m tırmanış",
+  test:s=>s.enTirmanis>=500},
+ {id:"safak",ik:"🌅",ad:"Şafakçı",aciklama:"06:00'dan önce aktivite başlat",
+  test:s=>s.safak},
+ {id:"kararli",ik:"🔥",ad:"Kararlı",aciklama:"7 farklı günde aktivite yap",
+  test:s=>s.gunler>=7},
+];
+async function rozetDurum(){
+  const akts=await dbTum("aktiviteler"), pois=await dbTum("pois");
+  return{adet:akts.length,
+    toplam:akts.reduce((s,a)=>s+a.mesafe,0),
+    enUzun:Math.max(0,...akts.map(a=>a.mesafe)),
+    enTirmanis:Math.max(0,...akts.map(a=>a.tirmanis||0)),
+    kamp:pois.filter(p=>p.tip==="kamp").length,
+    poi:pois.length,
+    safak:akts.some(a=>new Date(a.tarih).getHours()<6),
+    gunler:new Set(akts.map(a=>gunAnahtar(a.tarih))).size};
+}
+async function rozetKontrol(){
+  const meta=(await dbAl("meta","rozetler"))||{k:"rozetler",acik:[]};
+  const s=await rozetDurum();let yeni=false;
+  for(const r of ROZETLER){
+    if(!meta.acik.includes(r.id)&&r.test(s)){
+      meta.acik.push(r.id);yeni=true;
+      toast(`${r.ik} Rozet kazandın: ${r.ad}!`,true);}}
+  if(yeni)await dbYaz("meta",meta);
+  rozetCiz(meta.acik);
+}
+async function rozetCiz(acik){
+  if(!acik)acik=((await dbAl("meta","rozetler"))||{acik:[]}).acik;
+  $("#rozetSayi").textContent=`${acik.length} / ${ROZETLER.length}`;
+  $("#rozetGrid").innerHTML=ROZETLER.map(r=>`
+    <div class="rozet ${acik.includes(r.id)?"acik":""}">
+      <div class="halka">${r.ik}</div><b>${r.ad}</b><small>${r.aciklama}</small></div>`).join("");
+}
+
+/* =============== gezinme & başlangıç =============== */
+$("#nav").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  $$("#nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");
+  $$(".screen").forEach(s=>s.classList.remove("active"));
+  $("#ekran-"+b.dataset.ekran).classList.add("active");
+  if(b.dataset.ekran==="kayit")setTimeout(()=>map.invalidateSize(),60);
+  if(b.dataset.ekran==="istatistik")istatCiz();
+  if(b.dataset.ekran==="rotalar")rotaListeCiz();
+  if(b.dataset.ekran==="rozetler")rozetCiz();
+});
+$("#typeRow").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  $$("#typeRow button").forEach(x=>x.classList.remove("secili"));
+  b.classList.add("secili");kayit.tip=b.dataset.tip;
+});
+$("#btnStart").onclick=kaydiBaslat;
+$("#btnStop").onclick=kaydiBitir;
+$("#btnPauseToggle").onclick=elleDuraklat;
+$("#btnPoi").onclick=()=>poiModalAc();
+
+(async function(){
+  await dbAc();
+  haritaKur();
+  gpsBaslat();
+  poileriCiz();
+  rotaListeCiz();
+  rozetCiz();
+})();
+</script>
+</body>
+</html>
