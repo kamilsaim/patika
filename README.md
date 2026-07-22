@@ -1,71 +1,73 @@
+<div align="center">
+
+<img src="logo.png" alt="Patika" width="260">
+
 # Patika
 
-Tek dosya HTML olarak yazılmış rota ve aktivite takip uygulaması. Bisiklet, yürüyüş ve koşu için canlı GPS kaydı, kamp yeri işaretleme, yükseklik profili, GPX içe/dışa aktarma ve rozet sistemi içerir. Uzun vadeli hedef: Wikiloc benzeri bir topluluk rota keşif platformu.
+**Yolunu kayıt et, anını yaşa.**
 
-## Özellikler (v1.0.0)
+_Yürüyüş, koşu ve bisiklet için rota takibi; kamp yerlerini işaretleyip yorumlayabildiğin, rotalarını dışarı aktarabildiğin bir cep uygulaması._
 
-- **Canlı kayıt:** anlık hız, mesafe, tırmanış, hareket süresi
-- **Otomatik duraklama:** ~2 km/s altında 6 sn hareketsizlikte, tekrar başlayınca otomatik devam
-- **Elle duraklat/devam:** dur-kalk molalarında hız ortalamasını bozmaz
-- **Harita katmanları:** Sokak (OSM), Uydu (Esri World Imagery), Topoğrafya (OpenTopoMap) — seçim hatırlanır
-- **Yer işaretleme:** kamp, su, manzara, tehlike, not — yorum ve tür seçimi ile
-  - Kayıt sırasında "İşaretle" butonu → mevcut konum
-  - Haritaya uzun basınca → seçilen nokta
-- **Rotalarım:** liste + detayda harita, istatistikler, yükseklik profili grafiği
-- **GPX dışa aktarma:** işaretler waypoint olarak gömülür (Strava, Wikiloc, OsmAnd uyumlu)
-- **GPX içe aktarma:** dışarıdan gelen rotayı işaretleriyle birlikte alır
-- **İstatistik:** günlük (son 7 gün), haftalık (son 8 hafta), aylık (son 6 ay) toplam km, tırmanış, sürüş/yürüyüş süresi + çubuk grafik
-- **10 rozet:** İlk Adım, Onluk, Yarım Yüz, 100 Kulübü, 500 Kulübü, Kampçı, Kartograf, Tırmanışçı, Şafakçı, Kararlı
-- **Wake Lock:** kayıt sırasında ekranı açık tutar
-- **Tüm veri IndexedDB'de yerel** — internet gerekmez
+[**▶ Uygulamayı Aç**](https://kamilsaim.github.io/patika/)
 
-## Kurulum
+</div>
 
-1. `patika.html` dosyasını HTTPS destekli bir yere yükle (Firebase Hosting, GitHub Pages, Vercel).
-2. Telefonda tarayıcıdan aç. Konum izni ver.
-3. İlk açılışta ana ekrana ekle → PWA gibi çalışır.
+---
 
-**Not:** Tarayıcı Geolocation API'si HTTPS gerektirir. `file://` üzerinden açılırsa GPS çalışmaz.
+## Patika nedir?
 
-## Yol Haritası
+Patika, dışarıda geçirdiğin zamanın sessiz bir kayıt defteri. Bisikletle bir tur atarken, bir tepeye tırmanırken ya da sabah koşusuna çıkarken telefonunu cebine at, o gün nereye gittiğini ve neler yaşadığını Patika arka planda tutsun. Sonra evinde açtığında haritada rotanı, yükseklik profilini, işaretlediğin kamp yerlerini ve yol boyunca not düştüğün her şeyi bir arada görürsün.
 
-### v2 — Bulut ve paylaşım (Supabase)
-- Kullanıcı girişi (e-posta / Google)
-- Rota yayınlama (özel / herkese açık)
-- **Canlı takip** — link ile başkasına konumunu paylaşma
-- Bölgeye göre rota keşfi (PostGIS)
-- Başlangıç/bitiş noktası bulanıklaştırma (gizlilik)
+Adı Türkiye'deki dağcıların ağaçlara ve kayalara boyadığı kırmızı-beyaz işaret taşından geliyor — Likya Yolu'nda, Aladağlar'da, Kaçkarlarda yürüyen herkesin tanıdığı o küçük işaret. Uygulamanın kayıt sırasında ekranın altında akan kırmızı-beyaz şerit de onun dijital karşılığı: "yoldayız" demenin sessiz yolu.
 
-### v3 — Topluluk
-- Rotalara yorum ve beğeni
-- Kamu kamp yerleri ortak katmanı
-- Bildirim / moderasyon
-- Kullanıcı profilleri ve rozetlerin topluluğa açılması
+İleride tek başına bir kayıt defteri olmaktan çıkıp topluluk platformuna dönüşmesi hedefleniyor: yayınladığın rotayı başkalarının keşfedebilmesi, gittiğin kamp yerlerinin ortak bir haritada birikmesi, yalnız çıktığında sevdiklerinin seni link üzerinden canlı takip edebilmesi.
 
-### v4 — APK
-- Capacitor ile Android paketi
-- Arka plan GPS (background-geolocation eklentisi)
-- Bildirim çubuğunda kayıt kontrolü
-- Google Play sürümü
+## Nasıl çalışır?
 
-## Teknik yığın
+1. **Türü seç.** Bisiklet, yürüyüş veya koşu — Patika her birinin ritmini bilir.
+2. **Kaydı başlat.** Anlık hızını, aldığın yolu, tırmandığın metreleri ve süreyi büyük, okunur bir gösterge kartında canlı görürsün.
+3. **Molalarda kendini bırak.** Bir çeşmenin başında durursan Patika otomatik duraklar, tekrar yürümeye başlayınca kendiliğinden devam eder. Ortalama hızın molalarla bozulmaz.
+4. **Değerli olan yerleri işaretle.** Kamp yerleri, temiz sular, manzara noktaları, tehlikeli geçitler ya da düşüp aklına gelen bir not — hepsini haritaya iğneler, yorumunu yazarsın.
+5. **Rotayı sakla.** Kaydı bitirince rotana bir isim verirsin. Her rota daha sonra harita, yükseklik profili ve istatistiklerle görüntülenebilir. GPX dosyası olarak dışarı aktarıp Strava, Wikiloc veya OsmAnd gibi başka uygulamalara taşıyabilirsin.
 
-- **Harita:** Leaflet 1.9.4
-- **Depolama:** IndexedDB (native)
-- **Yazı tipi:** Barlow + Barlow Condensed (Google Fonts)
-- **Tarayıcı API'leri:** Geolocation, Wake Lock, File
-- **Backend (v2+):** Supabase (Postgres + PostGIS + Realtime + Auth)
-- **Paketleme (v4):** Capacitor
+## Öne çıkan özellikler
 
-## Dosya yapısı
+🗺️ **Üç harita katmanı** — Sokak, uydu ve topoğrafya (yükseklik eğrili) arasında geçiş yaparsın, seçimin hatırlanır.
 
-```
-patika.html      # tüm uygulama (tek dosya)
-README.md        # bu dosya
-CHANGELOG.md     # sürüm notları
-```
+⏱️ **Otomatik duraklama** — Hareket durunca kayıt kendiliğinden bekler, tekrar yola çıkınca devam eder.
 
-## Geliştirici
+📍 **Yer işaretleme** — Kamp, su, manzara, tehlike ve genel not türleriyle konum ve yoruma göre işaretler eklenir; işaretler rotaya gömülü olarak dışa aktarılır.
 
-Kamil — Kayseri
-GitHub: [kamilsaim](https://github.com/kamilsaim)
+📈 **Yükseklik profili** — Her rotanın tırmanış-iniş grafiği çizilir; en yüksek ve en alçak noktaları görürsün.
+
+📊 **Günlük · haftalık · aylık istatistik** — Toplam mesafe, tırmanış metresi, sürüş ve yürüyüş saatleri; çubuk grafikle görsel özet.
+
+🏅 **Rozet sistemi** — İlk aktivite, 100 km kulübü, ilk kamp yeri, tek seferde 500 m tırmanış gibi 10 farklı rozet; kazanınca ekranda kutlama görünür.
+
+📤 **GPX içe/dışa aktarma** — Diğer uygulamalardan gelen rotaları alır, kendi rotalarını Strava, Wikiloc, OsmAnd uyumlu GPX olarak paylaşır.
+
+🔌 **Tamamen çevrimdışı** — İnternet olmadan da çalışır. Tüm verin senin cihazında yerel olarak durur; ayarlardan tek dosyada yedek alabilirsin.
+
+📱 **Ana ekrana eklenince tam uygulama** — Kendi ikonuyla, splash ekranıyla, tarayıcı çubukları olmadan, uygulama gibi açılır.
+
+## Teknoloji
+
+Tek dosyalık bir HTML uygulaması — çerçeve, derleme veya paket yöneticisi yok. Harita için [Leaflet](https://leafletjs.com), tarayıcının konum ve kilit ekranı arayüzleri (Geolocation + Wake Lock), veri saklama için tarayıcının IndexedDB'si kullanılır. [GitHub Pages](https://pages.github.com) üzerinden yayınlanır. Uzun vadede rota paylaşımı ve canlı takip için [Supabase](https://supabase.com), Android APK için [Capacitor](https://capacitorjs.com) planlanmıştır.
+
+## Sürüm Geçmişi
+
+| Sürüm | Öne çıkanlar |
+|-------|--------------|
+| **1.2** | Splash ekranı, ayarlar sekmesi (istatistik, yedekleme, veri silme), PWA (ana ekrana ekle) desteği |
+| **1.1** | Harita katmanı seçici: sokak, uydu, topoğrafya |
+| **1.0** | İlk sürüm: canlı GPS kaydı, otomatik duraklama, yer işaretleme, yükseklik profili, GPX içe/dışa aktarma, günlük/haftalık/aylık istatistik, 10 rozet |
+
+## Katkı
+
+Patika henüz tek başına çalışan bir kayıt defteri; ileriki sürümlerde katkı için hesap ve rota yayınlama gelecek. Şimdilik yapabileceğin en güzel şey uygulamayı bir kez denemek, telefonunda ana ekrana eklemek ve gittiğin bir patikadan geri dönerken eksik bulduklarını iletmek.
+
+---
+
+<div align="center">
+<sub>Yolunu bul, izini bırak.</sub>
+</div>
