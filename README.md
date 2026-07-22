@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="logo.png" alt="Patika" width="260">
+<img src="splash.png" alt="Patika" width="260">
 
 # Patika
 
