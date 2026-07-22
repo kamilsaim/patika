@@ -48,8 +48,10 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--blaze);outline-o
 .screen-head .sub{color:var(--muted);font-size:13px}
 
 /* ---------- alt menü ---------- */
-/* home indicator boşluğunun tamamı değil yarısı bırakılır — ikonlar alt kenara yaklaşır */
-#nav{height:calc(var(--nav-h) + var(--nav-pb));padding-bottom:var(--nav-pb);
+/* Bar ekranın dip kenarına kadar iner (yükseklik tam --safe-b içerir), ama ikonlar
+   home indicator boşluğunun yalnızca yarısı kadar yukarıda durur. Böylece ne bar
+   havada kalır ne de ikonların altında gereksiz boşluk olur. */
+#nav{height:calc(var(--nav-h) + var(--safe-b));padding-bottom:var(--nav-pb);
   display:flex;background:var(--surface);border-top:1px solid var(--line);flex-shrink:0}
 #nav button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
   color:var(--muted);font-size:10.5px;font-weight:500;padding:0 2px}
@@ -85,7 +87,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--blaze);outline-o
 /* kayıt HUD */
 #hud{position:absolute;left:0;right:0;bottom:0;z-index:500;
   background:rgba(16,22,19,.94);backdrop-filter:blur(10px);border-top:1px solid var(--line);
-  transform:translateY(110%);transition:transform .25s ease}
+  transform:translateY(110%);transition:transform .25s ease;padding-bottom:12px}
 #hud.acik{transform:none}
 #blaze{height:6px;background:repeating-linear-gradient(90deg,var(--blaze) 0 26px,#fff 26px 52px);
   background-size:52px 6px;opacity:.95}
@@ -181,7 +183,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--blaze);outline-o
 #poiTipler button span{font-size:20px}
 #poiTipler button.secili{border-color:var(--blaze);color:var(--text);background:rgba(230,58,33,.12)}
 .modal-btns{display:flex;gap:10px;margin-top:14px}
-#toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + var(--nav-pb) + 16px);transform:translateX(-50%) translateY(20px);
+#toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + var(--safe-b) + 16px);transform:translateX(-50%) translateY(20px);
   z-index:3000;background:var(--text);color:var(--bg);font-weight:600;font-size:14px;
   padding:11px 18px;border-radius:12px;opacity:0;transition:.25s;pointer-events:none;white-space:nowrap;max-width:92vw;
   overflow:hidden;text-overflow:ellipsis}
@@ -970,7 +972,7 @@ window.addEventListener("pageshow",vpTazele);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden)vpTazele(); });
 
 /* =============== gezinme & başlangıç =============== */
-const SURUM="1.3.5";
+const SURUM="1.3.6";
 $("#nav").addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
   $$("#nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");
