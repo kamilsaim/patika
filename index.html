@@ -398,6 +398,15 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--blaze);outline-o
             <div style="flex:1"><div class="ana" id="hesapEposta">—</div>
               <div class="alt">Giriş yapıldı</div></div>
           </div>
+          <div class="ayar-satir bagli" id="ayarSyncToggle">
+            <div style="flex:1"><div class="ana">Bulut yedekleme</div>
+              <div class="alt">Rotaların tüm cihazlarında görünür</div></div>
+            <div class="tog" id="togSync"></div>
+          </div>
+          <div class="ayar-satir bagli" id="ayarSyncSimdi">
+            <div style="flex:1"><div class="ana">Şimdi eşitle</div><div class="alt">Yükle + indir</div></div>
+            <div class="ok">↻</div>
+          </div>
           <div class="ayar-satir bagli tehlike" id="ayarCikisYap">
             <div style="flex:1"><div class="ana">Çıkış yap</div></div>
             <div class="ok">›</div>
@@ -835,6 +844,7 @@ function kayitModalAc(mes){
     modalKapat();izKatman.setLatLngs([]);
     toast("✔ Rota kaydedildi");
     rozetKontrol();rotaListeCiz();istatCiz();
+    senkronEt(true); // bulut yedekleme açıksa yeni rotayı yükle
   };
 }
 
@@ -936,6 +946,20 @@ function bboxEwkt(n){
     minLo=Math.min(minLo,p[1]);maxLo=Math.max(maxLo,p[1]);}
   return `SRID=4326;POLYGON((${minLo} ${minLa},${maxLo} ${minLa},${maxLo} ${maxLa},${minLo} ${maxLa},${minLo} ${minLa}))`;
 }
+function rotaPayload(a,u,gizlilik){
+  const n=a.noktalar;
+  const [bLat,bLng]=bulanik(n[0][0],n[0][1]);
+  const [eLat,eLng]=bulanik(n[n.length-1][0],n[n.length-1][1]);
+  return {
+    kullanici_id:u.id, ad:a.ad, tip:a.tip, aciklama:null, gizlilik:gizlilik,
+    noktalar:n, bbox:bboxEwkt(n),
+    baslangic_bulanik:ewktPoint(bLat,bLng), bitis_bulanik:ewktPoint(eLat,eLng),
+    mesafe:Math.round(a.mesafe||0), hareket_sn:Math.round(a.hareketSn||0),
+    gecen_sn:Math.round(a.gecenSn||a.hareketSn||0), tirmanis:Math.round(a.tirmanis||0),
+    max_hiz:a.maxHiz||0, ort_hiz:a.ortHiz||0, tarih:new Date(a.tarih).toISOString(),
+    yerel_id:a.id
+  };
+}
 async function yayinModalAc(){
   const a=aktifDetay; if(!a) return;
   if(!Bulut.yapilandirildi()){toast("Bulut yapılandırılmadı");return;}
@@ -977,14 +1001,7 @@ async function yayinKaydet(a,u){
       const n=a.noktalar;
       const [bLat,bLng]=bulanik(n[0][0],n[0][1]);
       const [eLat,eLng]=bulanik(n[n.length-1][0],n[n.length-1][1]);
-      const payload={
-        kullanici_id:u.id, ad:a.ad, tip:a.tip, aciklama:null, gizlilik:yayinGiz,
-        noktalar:n, bbox:bboxEwkt(n),
-        baslangic_bulanik:ewktPoint(bLat,bLng), bitis_bulanik:ewktPoint(eLat,eLng),
-        mesafe:Math.round(a.mesafe||0), hareket_sn:Math.round(a.hareketSn||0),
-        tirmanis:Math.round(a.tirmanis||0),
-        max_hiz:a.maxHiz||0, ort_hiz:a.ortHiz||0, tarih:new Date(a.tarih).toISOString()
-      };
+      const payload=rotaPayload(a,u,yayinGiz);
       const r=await Bulut.ekle("ptk_rotalar",payload); id=r[0].id;
     }
     a.bulutId=id; a.gizlilik=yayinGiz; await dbYaz("aktiviteler",a);
@@ -1130,6 +1147,47 @@ async function izleyiciCanliAc(kod){
         payload=>{if(payload.new.aktif===false){$("#izleyici").classList.remove("canli");toast("Yayın sona erdi");}})
       .subscribe();
   }
+}
+
+/* =============== bulut kütüphane senkronu =============== */
+let syncCalisiyor=false;
+const syncAcik=()=>localStorage.getItem("patikaSync")==="1";
+async function senkronEt(sessiz){
+  if(syncCalisiyor)return;
+  if(!Bulut.yapilandirildi()||!syncAcik())return;
+  const u=await Bulut.kullanici(); if(!u)return;
+  syncCalisiyor=true;
+  if(!sessiz)toast("Eşitleniyor…");
+  try{
+    // 1) YÜKLE: bulutId'si olmayan yerel rotaları 'ozel' olarak buluta gönder
+    for(const a of await dbTum("aktiviteler")){
+      if(a.bulutId||!a.noktalar||a.noktalar.length<2)continue;
+      try{
+        const r=await Bulut.ekle("ptk_rotalar",rotaPayload(a,u,a.gizlilik||"ozel"));
+        a.bulutId=r[0].id; a.gizlilik=a.gizlilik||"ozel"; await dbYaz("aktiviteler",a);
+      }catch(e){ console.error("[Patika] sync yükleme:",e); }
+    }
+    // 2) İNDİR: bulutta olup yerelde olmayan rotaları indir
+    const bulut=await Bulut.getir("ptk_rotalar",{kullanici_id:u.id});
+    const yerel=await dbTum("aktiviteler");
+    const yerelIdler=new Set(yerel.map(a=>a.id));
+    const bulutIdler=new Set(yerel.map(a=>a.bulutId).filter(Boolean));
+    let indi=0;
+    for(const r of bulut){
+      if((r.yerel_id&&yerelIdler.has(r.yerel_id))||bulutIdler.has(r.id))continue;
+      await dbYaz("aktiviteler",{
+        id:r.yerel_id||("a"+Date.parse(r.tarih)),
+        ad:r.ad, tip:r.tip, tarih:new Date(r.tarih).getTime(),
+        noktalar:r.noktalar||[], mesafe:r.mesafe||0, hareketSn:r.hareket_sn||0,
+        gecenSn:r.gecen_sn||r.hareket_sn||0, tirmanis:r.tirmanis||0,
+        maxHiz:r.max_hiz||0, ortHiz:r.ort_hiz||0, bulutId:r.id, gizlilik:r.gizlilik
+      });
+      indi++;
+    }
+    if(!sessiz)toast(indi?`✔ ${indi} rota indirildi`:"✔ Eşitlendi");
+    rotaListeCiz();istatCiz();
+  }catch(err){ console.error("[Patika] sync:",err); if(!sessiz)toast("Eşitleme hatası"); }
+  finally{ syncCalisiyor=false; }
 }
 
 /* yükseklik profili */
@@ -1367,7 +1425,7 @@ window.addEventListener("pageshow",vpTazele);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden)vpTazele(); });
 
 /* =============== gezinme & başlangıç =============== */
-const SURUM="1.6.1";
+const SURUM="1.7.0";
 $("#nav").addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
   $$("#nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");
@@ -1404,7 +1462,10 @@ async function hesapCiz(){
   const girisli=!!u;
   $("#hesapGiris").style.display=girisli?"":"none";
   $("#hesapCikis").style.display=girisli?"none":"";
-  if(girisli)$("#hesapEposta").textContent=u.email||u.user_metadata?.email||"Hesabım";
+  if(girisli){
+    $("#hesapEposta").textContent=u.email||u.user_metadata?.email||"Hesabım";
+    $("#togSync").classList.toggle("acik",syncAcik());
+  }
 }
 function girisModalAc(){
   modalAc(`<h2>Giriş Yap</h2>
@@ -1429,6 +1490,16 @@ function girisModalAc(){
 $("#ayarGirisAc").onclick=girisModalAc;
 $("#ayarCikisYap").onclick=async()=>{
   await Bulut.cikis();toast("Çıkış yapıldı");hesapCiz();
+};
+$("#ayarSyncToggle").onclick=()=>{
+  const acik=$("#togSync").classList.toggle("acik");
+  localStorage.setItem("patikaSync",acik?"1":"0");
+  if(acik){toast("Bulut yedekleme açık");senkronEt();}
+  else toast("Bulut yedekleme kapalı");
+};
+$("#ayarSyncSimdi").onclick=()=>{
+  if(!syncAcik()){toast("Önce bulut yedeklemeyi aç");return;}
+  senkronEt();
 };
 
 /* ---- uygulama içi güncelleme ---- */
@@ -1522,8 +1593,11 @@ $("#btnPoi").onclick=()=>poiModalAc();
   rozetCiz();
   if(_r)izleyiciRotaAc(_r);
   else if(_canli)izleyiciCanliAc(_canli);
-  // bulut oturumu (varsa) — giriş/çıkışta ayarları tazele
-  Bulut.oturumDinle(()=>{ if($("#ekran-ayarlar").classList.contains("active")) hesapCiz(); });
+  // bulut oturumu (varsa) — giriş/çıkışta ayarları tazele + sessiz eşitle
+  Bulut.oturumDinle(u=>{
+    if($("#ekran-ayarlar").classList.contains("active")) hesapCiz();
+    if(u) senkronEt(true);
+  });
   // uygulama içi güncelleme kontrolü
   guncellemeKontrol();
   // inline PWA manifest (base64 data URL)
