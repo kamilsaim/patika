@@ -975,55 +975,52 @@ function rotaPayload(a,u,gizlilik){
     yerel_id:a.id
   };
 }
+function bilgiModal(baslik,mesaj){
+  modalAc(`<h2>${baslik}</h2>
+    <p style="color:var(--muted);font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word">${mesaj}</p>
+    <div class="modal-btns"><button class="btn btn-blaze" id="mTamam">Tamam</button></div>`);
+  $("#mTamam").onclick=modalKapat;
+}
 async function yayinModalAc(){
   const a=aktifDetay; if(!a) return;
   if(!Bulut.yapilandirildi()){toast("Bulut yapılandırılmadı");return;}
   const u=await Bulut.kullanici();
   if(!u){toast("Önce Ayarlar → Giriş yap");return;}
-  const yayinda=!!a.bulutId;
-  yayinGiz=a.gizlilik||"link";
-  modalAc(`<h2>${yayinda?"Yayını Düzenle":"Rotayı Yayınla"}</h2>
-    <div id="gizSecici">
-      ${Object.entries(GIZ).map(([k,v])=>`<button data-g="${k}" class="${k===yayinGiz?"secili":""}">
-        <span class="gik">${v.ik}</span><span><span class="gad">${v.ad}</span><div class="gac">${v.ac}</div></span></button>`).join("")}
-    </div>
+  const yayinda=!!a.bulutId, g=a.gizlilik;
+  const durum = !yayinda ? "Bu rota henüz paylaşılmadı."
+    : g==="herkese" ? "🌍 Şu an Keşfet'te herkese açık."
+    : g==="link"    ? "🔗 Bağlantısı olan herkes görebiliyor."
+    :                 "🔒 Bulutta özel (yalnız sen).";
+  modalAc(`<h2>Rotayı Paylaş</h2>
+    <p style="color:var(--muted);font-size:13px;margin:0 0 6px">${durum}</p>
     <div class="giz-link" id="gizLinkKutu" style="display:none">
       <input id="gizLink" readonly><button id="gizKopyala">Kopyala</button></div>
+    <button class="btn btn-blaze" id="yLink" style="width:100%;margin-top:10px">🔗 Bağlantı ile paylaş</button>
+    <button class="btn btn-blaze" id="yKesfet" style="width:100%;margin-top:8px">🌍 Keşfet'e gönder</button>
     <div class="modal-btns">
-      ${yayinda?'<button class="btn btn-ghost" id="yKaldir">Yayından kaldır</button>':'<button class="btn btn-ghost" id="yVazgec">Vazgeç</button>'}
-      <button class="btn btn-blaze" id="yOnay">${yayinda?"Güncelle":"Yayınla"}</button></div>`);
-  const linkGoster=()=>{
-    const kutu=$("#gizLinkKutu");
-    if(yayinda && yayinGiz!=="ozel"){kutu.style.display="flex";$("#gizLink").value=rotaLinki(a.bulutId);}
-    else kutu.style.display="none";
-  };
-  $$("#gizSecici button").forEach(b=>b.onclick=()=>{
-    $$("#gizSecici button").forEach(x=>x.classList.remove("secili"));
-    b.classList.add("secili");yayinGiz=b.dataset.g;linkGoster();
-  });
-  linkGoster();
+      <button class="btn btn-ghost" id="yKapat">Kapat</button>
+      ${yayinda?'<button class="btn btn-ghost" id="yKaldir">Yayından kaldır</button>':''}
+    </div>`);
+  if(yayinda && g!=="ozel"){$("#gizLinkKutu").style.display="flex";$("#gizLink").value=rotaLinki(a.bulutId);}
   if($("#gizKopyala"))$("#gizKopyala").onclick=()=>kopyala($("#gizLink").value);
-  if($("#yVazgec"))$("#yVazgec").onclick=modalKapat;
+  $("#yLink").onclick=()=>yayinUygula(a,u,"link");
+  $("#yKesfet").onclick=()=>yayinUygula(a,u,"herkese");
+  $("#yKapat").onclick=modalKapat;
   if($("#yKaldir"))$("#yKaldir").onclick=()=>yayindanKaldir(a);
-  $("#yOnay").onclick=()=>yayinKaydet(a,u);
 }
-async function yayinKaydet(a,u){
+async function yayinUygula(a,u,gizlilik){
   try{
     let id=a.bulutId;
-    if(id){
-      await Bulut.guncelle("ptk_rotalar",id,{ad:a.ad,gizlilik:yayinGiz});
-    }else{
-      const n=a.noktalar;
-      const [bLat,bLng]=bulanik(n[0][0],n[0][1]);
-      const [eLat,eLng]=bulanik(n[n.length-1][0],n[n.length-1][1]);
-      const payload=rotaPayload(a,u,yayinGiz);
-      const r=await Bulut.ekle("ptk_rotalar",payload); id=r[0].id;
-    }
-    a.bulutId=id; a.gizlilik=yayinGiz; await dbYaz("aktiviteler",a);
-    modalKapat();
-    if(yayinGiz!=="ozel") kopyala(rotaLinki(id));
-    else toast("✔ Buluta kaydedildi");
-  }catch(err){ console.error("[Patika] yayın hatası:",err); toast("Hata: "+(err.message||err.details||"yayınlanamadı")); }
+    if(id) await Bulut.guncelle("ptk_rotalar",id,{ad:a.ad,gizlilik});
+    else { const r=await Bulut.ekle("ptk_rotalar",rotaPayload(a,u,gizlilik)); id=r[0].id; }
+    a.bulutId=id; a.gizlilik=gizlilik; await dbYaz("aktiviteler",a);
+    if(gizlilik==="link") kopyala(rotaLinki(id));
+    else toast("🌍 Keşfet'e gönderildi");
+    yayinModalAc(); // durumu ve link kutusunu tazele
+  }catch(err){
+    console.error("[Patika] yayın hatası:",err);
+    bilgiModal("Yayınlanamadı",(err.message||err.details||err.hint||"Bilinmeyen hata")+(err.code?("\n\nkod: "+err.code):""));
+  }
 }
 function yayindanKaldir(a){
   onayModalAc("Yayından kaldır","Bu rota buluttan silinecek; yerel kaydın kalır.","Kaldır",async()=>{
@@ -1488,7 +1485,7 @@ window.addEventListener("pageshow",vpTazele);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden)vpTazele(); });
 
 /* =============== gezinme & başlangıç =============== */
-const SURUM="1.8.0";
+const SURUM="1.8.1";
 $("#nav").addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
   $$("#nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");
