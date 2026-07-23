@@ -60,6 +60,7 @@ Tek dosyalık bir HTML uygulaması — çerçeve, derleme veya paket yöneticisi
 
 | Sürüm | Öne çıkanlar |
 |-------|--------------|
+| **1.6** | Bulut paylaşımı: rotanı özel / bağlantılı / herkese açık yayınla; başlangıç–bitiş gizliliği için uç noktalar bulanıklaştırılır; canlı konum paylaşımı (kayıt sırasında link üret, sevdiklerin tarayıcıdan canlı izlesin); paylaşılan rota ve canlı takip için izleyici sayfaları |
 | **1.5** | Hesap girişi (e-posta bağlantısı ve Google) — bulut paylaşımının ilk adımı; uygulama içi otomatik güncelleme bildirimi; tüm pencereler ekran ortasında açılıyor; silme işlemlerinde onay penceresi |
 | **1.4** | iOS'ta ekrana oturma sorunları giderildi: alt menü artık ekranın dibine oturuyor, dokunuşlar şaşmıyor |
 | **1.3** | Kano ve kayak eklendi; aktivite tipine göre akıllı otomatik duraklama; iOS güvenli alan düzeltmeleri |

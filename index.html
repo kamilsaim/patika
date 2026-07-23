@@ -103,6 +103,9 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--blaze);outline-o
 .hud-lbl{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
 #pauseChip{display:none;justify-content:center;color:var(--warn);font-size:13px;font-weight:600;padding-bottom:4px}
 #hud.duraklama #pauseChip{display:flex}
+#btnCanli{display:block;margin:0 16px 8px;background:var(--surface2);border:1px solid var(--line);
+  color:var(--muted);border-radius:10px;padding:8px;font-size:13px;font-weight:600;width:calc(100% - 32px);cursor:pointer}
+#btnCanli.yayinda{border-color:var(--blaze);color:var(--blaze-soft);background:rgba(230,58,33,.1)}
 .hud-btns{display:flex;gap:10px;padding:8px 16px 14px}
 .btn{flex:1;border-radius:14px;padding:14px;font-size:15px;font-weight:600;text-align:center}
 .btn-blaze{background:var(--blaze);color:#fff}
@@ -147,6 +150,19 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--blaze);outline-o
 #profil{width:100%;height:110px;display:block;margin-top:12px}
 .detay-alt{padding:0 16px calc(16px + var(--safe-b))}
 
+/* ---------- izleyici (paylaşılan rota / canlı) ---------- */
+#izleyici{position:fixed;inset:0;z-index:1500;background:var(--bg);display:none;flex-direction:column}
+#izleyici.acik{display:flex}
+#izMap{flex:1;background:#0b0f0d}
+#izPanel{background:var(--surface);border-top:1px solid var(--line);
+  padding:16px 16px calc(16px + var(--safe-b));display:flex;flex-direction:column;gap:10px}
+#izPanel h2{font-family:var(--font-num);font-size:22px;font-weight:600}
+#izCanliRozet{display:none;align-self:flex-start;color:#fff;background:var(--blaze);font-size:11px;
+  font-weight:700;letter-spacing:.08em;padding:4px 10px;border-radius:999px}
+#izleyici.canli #izCanliRozet{display:inline-block;animation:izYaniyor 1.4s ease-in-out infinite}
+@keyframes izYaniyor{50%{opacity:.45}}
+#izPanel .btn{margin-top:4px;text-decoration:none}
+
 /* ---------- istatistik ---------- */
 .seg{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:3px;margin-bottom:14px}
 .seg button{flex:1;padding:9px;border-radius:9px;font-size:13px;font-weight:600;color:var(--muted)}
@@ -182,6 +198,17 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--blaze);outline-o
   padding:8px 2px;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted)}
 #poiTipler button span{font-size:20px}
 #poiTipler button.secili{border-color:var(--blaze);color:var(--text);background:rgba(230,58,33,.12)}
+#gizSecici{display:flex;flex-direction:column;gap:6px}
+#gizSecici button{background:var(--surface2);border:1px solid var(--line);border-radius:11px;
+  padding:10px 12px;text-align:left;color:var(--muted);display:flex;align-items:center;gap:10px}
+#gizSecici button .gik{font-size:19px;flex-shrink:0}
+#gizSecici button .gad{color:var(--text);font-size:14px;font-weight:600}
+#gizSecici button .gac{font-size:11.5px;margin-top:1px}
+#gizSecici button.secili{border-color:var(--blaze);background:rgba(230,58,33,.12)}
+.giz-link{display:flex;gap:8px;margin-top:10px;align-items:center}
+.giz-link input{flex:1;font-size:12px;background:var(--surface2);border:1px solid var(--line);
+  border-radius:9px;padding:9px 10px;color:var(--text)}
+.giz-link button{background:var(--blaze);color:#fff;border:0;border-radius:9px;padding:9px 13px;font-weight:700;font-size:13px}
 .modal-btns{display:flex;gap:10px;margin-top:14px}
 #toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + var(--safe-b) + 16px);transform:translateX(-50%) translateY(20px);
   z-index:3000;background:var(--text);color:var(--bg);font-weight:600;font-size:14px;
@@ -292,6 +319,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--blaze);outline-o
     <div id="hud">
       <div id="blaze"></div>
       <div id="pauseChip">⏸ Otomatik durakladı — hareket bekleniyor</div>
+      <button id="btnCanli">📡 Canlı Paylaş</button>
       <div class="hud-grid">
         <div class="buyuk"><div class="hud-num" id="hHiz">0<small style="font-size:26px"> km/s</small></div><div class="hud-lbl">Anlık hız</div></div>
         <div><div class="hud-num" id="hMesafe">0,00</div><div class="hud-lbl">km</div></div>
@@ -456,6 +484,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--blaze);outline-o
   <div class="detay-bar">
     <button class="ikonbtn" id="btnDetayKapat"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
     <h2 id="detayBaslik"></h2>
+    <button class="ikonbtn" id="btnYayinla" aria-label="Yayınla"><svg viewBox="0 0 24 24"><path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7M16 6l-4-4-4 4M12 2v14"/></svg></button>
     <button class="ikonbtn" id="btnGpx" aria-label="GPX dışa aktar"><svg viewBox="0 0 24 24"><path d="M12 15V3M7 8l5-5 5 5M4 21h16"/></svg></button>
     <button class="ikonbtn" id="btnSil" aria-label="Sil"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14"/></svg></button>
   </div>
@@ -463,6 +492,17 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--blaze);outline-o
   <div class="scroll detay-alt">
     <div class="istat-grid" id="detayIstat" style="padding-left:0;padding-right:0"></div>
     <canvas id="profil"></canvas>
+  </div>
+</div>
+
+<!-- İZLEYİCİ (paylaşılan rota / canlı takip) -->
+<div id="izleyici">
+  <div id="izMap"></div>
+  <div id="izPanel">
+    <div id="izCanliRozet">● CANLI</div>
+    <h2 id="izBaslik">Yükleniyor…</h2>
+    <div class="istat-grid" id="izIstat"></div>
+    <a id="izAc" class="btn btn-blaze" href="?">Patika'yı Aç</a>
   </div>
 </div>
 
@@ -671,6 +711,8 @@ function kaydiBaslat(){
   izKatman.setLatLngs([]);
   $("#startPanel").style.display="none";
   const h=$("#hud");h.classList.add("acik","kayitta");h.classList.remove("duraklama");
+  $("#btnCanli").style.display=Bulut.yapilandirildi()?"block":"none";
+  $("#btnCanli").classList.remove("yayinda");$("#btnCanli").textContent="📡 Canlı Paylaş";
   ekranKilidi(true);
   hudZ=setInterval(hudGuncelle,1000);
   toast(`${TIP[kayit.tip].ik} Kayıt başladı`);
@@ -720,6 +762,7 @@ function gpsNokta(pos){
   map.panTo(sonKonum,{animate:true});
   kayit.hareketSn+=dt;
   if(hiz*3.6>kayit.maxHiz&&hiz*3.6<90)kayit.maxHiz=hiz*3.6;
+  if(canliDurum&&canliDurum.aktif)canliNoktaKuyruk(yeni,hiz*3.6);
 
   // tırmanış (yumuşatılmış)
   if(c.altitude!=null){
@@ -750,6 +793,7 @@ async function kaydiBitir(){
   $("#startPanel").style.display="flex";
   $("#btnPauseToggle").textContent="Duraklat";
   kayit.aktif=false;
+  if(canliDurum)canliBitir();
   if(n.length<2||mes<30){toast("Kayıt çok kısa, kaydedilmedi");izKatman.setLatLngs([]);return;}
   kayitModalAc(mes);
 }
@@ -840,6 +884,7 @@ async function detayAc(id){
   const a=await dbAl("aktiviteler",id);if(!a)return;
   aktifDetay=a;
   $("#detayBaslik").textContent=a.ad;
+  $("#btnYayinla").style.display=Bulut.yapilandirildi()?"":"none";
   $("#detay").classList.add("acik");
   if(!detayMap){detayMap=L.map("detayMap",{zoomControl:false});
     katmanYukle(detayMap,aktifKatman||"sokak");
@@ -860,10 +905,231 @@ $("#btnSil").onclick=()=>{
   const id=aktifDetay.id;
   onayModalAc("Rotayı sil","Bu rota kalıcı olarak silinecek.","Sil",async()=>{
     await dbSil("aktiviteler",id);
+    if(aktifDetay && aktifDetay.bulutId){try{await Bulut.sil("ptk_rotalar",aktifDetay.bulutId);}catch(e){}}
     $("#detay").classList.remove("acik");
     rotaListeCiz();istatCiz();toast("Rota silindi");
   });
 };
+
+/* =============== rota yayınlama (bulut) =============== */
+const GIZ={
+  ozel:   {ik:"🔒",ad:"Özel",       ac:"Sadece sen görürsün (bulut yedeği)"},
+  link:   {ik:"🔗",ad:"Bağlantı",   ac:"Linki olan herkes açar"},
+  herkese:{ik:"🌍",ad:"Herkese açık",ac:"Keşfette herkes görebilir"}
+};
+let yayinGiz="link";
+function rotaLinki(id){return location.origin+location.pathname+"?r="+id;}
+function kopyala(metin){
+  if(navigator.clipboard) navigator.clipboard.writeText(metin).then(()=>toast("✔ Bağlantı kopyalandı"),()=>toast(metin));
+  else toast(metin);
+}
+function bulanik(lat,lng,metre=200){ // başlangıç/bitiş gizliliği: ~metre kadar rastgele kaydır
+  const aci=Math.random()*2*Math.PI, r=metre*(0.5+Math.random()*0.5);
+  const dLat=(r*Math.cos(aci))/111320;
+  const dLng=(r*Math.sin(aci))/(111320*Math.cos(lat*Math.PI/180));
+  return [lat+dLat,lng+dLng];
+}
+const ewktPoint=(lat,lng)=>`SRID=4326;POINT(${lng} ${lat})`;
+function bboxEwkt(n){
+  let minLa=90,maxLa=-90,minLo=180,maxLo=-180;
+  for(const p of n){minLa=Math.min(minLa,p[0]);maxLa=Math.max(maxLa,p[0]);
+    minLo=Math.min(minLo,p[1]);maxLo=Math.max(maxLo,p[1]);}
+  return `SRID=4326;POLYGON((${minLo} ${minLa},${maxLo} ${minLa},${maxLo} ${maxLa},${minLo} ${maxLa},${minLo} ${minLa}))`;
+}
+async function yayinModalAc(){
+  const a=aktifDetay; if(!a) return;
+  if(!Bulut.yapilandirildi()){toast("Bulut yapılandırılmadı");return;}
+  const u=await Bulut.kullanici();
+  if(!u){toast("Önce Ayarlar → Giriş yap");return;}
+  const yayinda=!!a.bulutId;
+  yayinGiz=a.gizlilik||"link";
+  modalAc(`<h2>${yayinda?"Yayını Düzenle":"Rotayı Yayınla"}</h2>
+    <div id="gizSecici">
+      ${Object.entries(GIZ).map(([k,v])=>`<button data-g="${k}" class="${k===yayinGiz?"secili":""}">
+        <span class="gik">${v.ik}</span><span><span class="gad">${v.ad}</span><div class="gac">${v.ac}</div></span></button>`).join("")}
+    </div>
+    <div class="giz-link" id="gizLinkKutu" style="display:none">
+      <input id="gizLink" readonly><button id="gizKopyala">Kopyala</button></div>
+    <div class="modal-btns">
+      ${yayinda?'<button class="btn btn-ghost" id="yKaldir">Yayından kaldır</button>':'<button class="btn btn-ghost" id="yVazgec">Vazgeç</button>'}
+      <button class="btn btn-blaze" id="yOnay">${yayinda?"Güncelle":"Yayınla"}</button></div>`);
+  const linkGoster=()=>{
+    const kutu=$("#gizLinkKutu");
+    if(yayinda && yayinGiz!=="ozel"){kutu.style.display="flex";$("#gizLink").value=rotaLinki(a.bulutId);}
+    else kutu.style.display="none";
+  };
+  $$("#gizSecici button").forEach(b=>b.onclick=()=>{
+    $$("#gizSecici button").forEach(x=>x.classList.remove("secili"));
+    b.classList.add("secili");yayinGiz=b.dataset.g;linkGoster();
+  });
+  linkGoster();
+  if($("#gizKopyala"))$("#gizKopyala").onclick=()=>kopyala($("#gizLink").value);
+  if($("#yVazgec"))$("#yVazgec").onclick=modalKapat;
+  if($("#yKaldir"))$("#yKaldir").onclick=()=>yayindanKaldir(a);
+  $("#yOnay").onclick=()=>yayinKaydet(a,u);
+}
+async function yayinKaydet(a,u){
+  try{
+    let id=a.bulutId;
+    if(id){
+      await Bulut.guncelle("ptk_rotalar",id,{ad:a.ad,gizlilik:yayinGiz});
+    }else{
+      const n=a.noktalar;
+      const [bLat,bLng]=bulanik(n[0][0],n[0][1]);
+      const [eLat,eLng]=bulanik(n[n.length-1][0],n[n.length-1][1]);
+      const payload={
+        kullanici_id:u.id, ad:a.ad, tip:a.tip, aciklama:null, gizlilik:yayinGiz,
+        noktalar:n, bbox:bboxEwkt(n),
+        baslangic_bulanik:ewktPoint(bLat,bLng), bitis_bulanik:ewktPoint(eLat,eLng),
+        mesafe:a.mesafe, hareket_sn:a.hareketSn, tirmanis:a.tirmanis||0,
+        max_hiz:a.maxHiz||0, ort_hiz:a.ortHiz||0, tarih:new Date(a.tarih).toISOString()
+      };
+      const r=await Bulut.ekle("ptk_rotalar",payload); id=r[0].id;
+    }
+    a.bulutId=id; a.gizlilik=yayinGiz; await dbYaz("aktiviteler",a);
+    modalKapat();
+    if(yayinGiz!=="ozel") kopyala(rotaLinki(id));
+    else toast("✔ Buluta kaydedildi");
+  }catch(err){ toast("Hata: "+(err.message||"yayınlanamadı")); }
+}
+function yayindanKaldir(a){
+  onayModalAc("Yayından kaldır","Bu rota buluttan silinecek; yerel kaydın kalır.","Kaldır",async()=>{
+    try{
+      await Bulut.sil("ptk_rotalar",a.bulutId);
+      delete a.bulutId; delete a.gizlilik; await dbYaz("aktiviteler",a);
+      toast("Yayından kaldırıldı");
+    }catch(err){ toast("Hata: "+(err.message||"kaldırılamadı")); }
+  });
+}
+$("#btnYayinla").onclick=yayinModalAc;
+
+/* =============== canlı paylaşım (bulut) =============== */
+let canliDurum=null, canliZ=null;
+const slugUret=()=>Math.random().toString(36).slice(2,8);
+async function canliBaslat(){
+  if(!Bulut.yapilandirildi()){toast("Bulut yapılandırılmadı");return;}
+  const u=await Bulut.kullanici();
+  if(!u){toast("Önce Ayarlar → Giriş yap");return;}
+  try{
+    const kod=slugUret();
+    const r=await Bulut.ekle("ptk_canli",{kullanici_id:u.id,paylasim_kodu:kod});
+    canliDurum={oturumId:r[0].id,kod,kuyruk:[],gonderiliyor:false,aktif:true,mesafe:0,sonNokta:null};
+    $("#btnCanli").classList.add("yayinda");
+    $("#btnCanli").textContent="📡 Canlı yayında — linki kopyala";
+    const link=location.origin+location.pathname+"?canli="+kod;
+    if(navigator.share)navigator.share({title:"Patika — canlı takip",text:"Beni canlı izle",url:link}).catch(()=>{});
+    else kopyala(link);
+    canliZ=setInterval(canliFlush,10000);
+  }catch(err){toast("Canlı başlatılamadı: "+(err.message||""));}
+}
+function canliNoktaKuyruk(nokta,hizKms){
+  if(!canliDurum||!canliDurum.aktif)return;
+  if(canliDurum.sonNokta)canliDurum.mesafe+=mesafe(canliDurum.sonNokta,nokta);
+  canliDurum.sonNokta=nokta;
+  canliDurum.kuyruk.push({oturum_id:canliDurum.oturumId,lat:nokta[0],lng:nokta[1],
+    ele:nokta[2],hiz:Math.round(hizKms*10)/10,t:new Date(nokta[3]).toISOString()});
+}
+async function canliFlush(){
+  if(!canliDurum||canliDurum.gonderiliyor||!canliDurum.kuyruk.length)return;
+  canliDurum.gonderiliyor=true;
+  const gonder=canliDurum.kuyruk.slice();
+  try{
+    await Bulut.ekle("ptk_canli_nokta",gonder);
+    canliDurum.kuyruk.splice(0,gonder.length); // yalnız gidenleri düş (çevrimdışıysa kalır)
+    const son=gonder[gonder.length-1];
+    await Bulut.guncelle("ptk_canli",canliDurum.oturumId,{
+      son_konum:ewktPoint(son.lat,son.lng),son_konum_t:son.t,
+      son_hiz:son.hiz,toplam_mesafe:Math.round(canliDurum.mesafe)});
+  }catch(err){/* çevrimdışı: kuyrukta kalsın, sonraki turda gider */}
+  finally{canliDurum.gonderiliyor=false;}
+}
+async function canliBitir(){
+  if(!canliDurum)return;
+  clearInterval(canliZ);
+  await canliFlush();
+  try{await Bulut.guncelle("ptk_canli",canliDurum.oturumId,{aktif:false,bitis:new Date().toISOString()});}catch(e){}
+  canliDurum=null;
+  $("#btnCanli").classList.remove("yayinda");$("#btnCanli").textContent="📡 Canlı Paylaş";
+}
+$("#btnCanli").onclick=()=>{
+  if(canliDurum&&canliDurum.aktif)kopyala(location.origin+location.pathname+"?canli="+canliDurum.kod);
+  else canliBaslat();
+};
+
+/* =============== izleyici sayfaları (?r= / ?canli=) =============== */
+let izMap=null, izKanal=null;
+function izMapKur(){
+  if(izMap)return;
+  izMap=L.map("izMap",{zoomControl:false});
+  katmanYukle(izMap,localStorage.getItem("patikaKatman")||"sokak");
+  izMap._iz=L.polyline([],{color:"#E63A21",weight:4}).addTo(izMap);
+}
+const izKutu=(v,l)=>`<div class="kutu"><div class="hud-num">${v}</div><div class="hud-lbl">${l}</div></div>`;
+function uclariBudama(ll,metre){ // gizlilik: başlangıç/bitiş yakınını kırp
+  if(ll.length<6)return ll;
+  const kirp=arr=>{let toplam=0,i=1;while(i<arr.length&&toplam<metre){toplam+=mesafe(arr[i-1],arr[i]);i++;}return i-1;};
+  const bas=kirp(ll), son=kirp([...ll].reverse());
+  const kesit=ll.slice(bas, ll.length-son);
+  return kesit.length>=2?kesit:ll;
+}
+async function izleyiciRotaAc(id){
+  $("#izleyici").classList.add("acik");
+  izMapKur();setTimeout(()=>izMap.invalidateSize(),60);
+  try{
+    const r=(await Bulut.getir("ptk_rotalar",{id}))[0];
+    if(!r){$("#izBaslik").textContent="Rota bulunamadı";return;}
+    const u=await Bulut.kullanici();
+    const sahip=u&&u.id===r.kullanici_id;
+    let ll=(r.noktalar||[]).map(p=>[p[0],p[1]]);
+    if(!sahip)ll=uclariBudama(ll,200);
+    izMap._iz.setLatLngs(ll);
+    if(ll.length)setTimeout(()=>izMap.fitBounds(L.latLngBounds(ll),{padding:[30,30]}),90);
+    $("#izBaslik").textContent=(TIP[r.tip]?TIP[r.tip].ik+" ":"")+r.ad;
+    $("#izIstat").innerHTML=[
+      [fmtKm(r.mesafe),"km"],[fmtSure(r.hareket_sn),"hareket"],[r.tirmanis||0,"tırmanış m"],
+      [r.ort_hiz||0,"ort km/s"],[r.max_hiz||0,"maks km/s"],[new Date(r.tarih).toLocaleDateString("tr-TR"),"tarih"]
+    ].map(([v,l])=>izKutu(v,l)).join("");
+  }catch(err){$("#izBaslik").textContent="Rota yüklenemedi";}
+}
+function izCanliIstat(hiz){
+  const ll=izMap&&izMap._iz?izMap._iz.getLatLngs().map(p=>[p.lat,p.lng]):[];
+  $("#izIstat").innerHTML=[
+    [hiz!=null?Number(hiz).toLocaleString("tr-TR",{maximumFractionDigits:1}):"—","anlık km/s"],
+    [fmtKm(toplamMesafe(ll)),"km"]
+  ].map(([v,l])=>izKutu(v,l)).join("");
+}
+async function izleyiciCanliAc(kod){
+  $("#izleyici").classList.add("acik","canli");
+  izMapKur();setTimeout(()=>izMap.invalidateSize(),60);
+  $("#izBaslik").textContent="Canlı takip";
+  let oturum;
+  try{oturum=(await Bulut.getir("ptk_canli",{paylasim_kodu:kod}))[0];}catch(e){}
+  if(!oturum||!oturum.aktif){$("#izleyici").classList.remove("canli");$("#izBaslik").textContent="Yayın bulunamadı veya bitti";$("#izIstat").innerHTML="";return;}
+  let ll=[];
+  try{
+    const nk=(await Bulut.getir("ptk_canli_nokta",{oturum_id:oturum.id}))||[];
+    nk.sort((a,b)=>new Date(a.t)-new Date(b.t));
+    ll=nk.map(p=>[p.lat,p.lng]);
+  }catch(e){}
+  izMap._iz.setLatLngs(ll);
+  let konumM=null;
+  const konumGoster=(lat,lng)=>{
+    if(!konumM)konumM=L.circleMarker([lat,lng],{radius:8,color:"#fff",weight:2,fillColor:"#E63A21",fillOpacity:1}).addTo(izMap);
+    else konumM.setLatLng([lat,lng]);
+    izMap.setView([lat,lng],izMap.getZoom()<13?15:izMap.getZoom());
+  };
+  if(ll.length)konumGoster(ll[ll.length-1][0],ll[ll.length-1][1]);
+  izCanliIstat(oturum.son_hiz);
+  const c=Bulut.istemci();
+  if(c){
+    izKanal=c.channel("izle-"+kod)
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"ptk_canli_nokta",filter:"oturum_id=eq."+oturum.id},
+        payload=>{const p=payload.new;izMap._iz.addLatLng([p.lat,p.lng]);konumGoster(p.lat,p.lng);izCanliIstat(p.hiz);})
+      .on("postgres_changes",{event:"UPDATE",schema:"public",table:"ptk_canli",filter:"id=eq."+oturum.id},
+        payload=>{if(payload.new.aktif===false){$("#izleyici").classList.remove("canli");toast("Yayın sona erdi");}})
+      .subscribe();
+  }
+}
 
 /* yükseklik profili */
 function profilCiz(a){
@@ -1100,7 +1366,7 @@ window.addEventListener("pageshow",vpTazele);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden)vpTazele(); });
 
 /* =============== gezinme & başlangıç =============== */
-const SURUM="1.5.1";
+const SURUM="1.6.0";
 $("#nav").addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
   $$("#nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");
@@ -1244,10 +1510,17 @@ $("#btnPoi").onclick=()=>poiModalAc();
 (async function(){
   await dbAc();
   haritaKur();
-  gpsBaslat();
+  // izleyici modu: paylaşılan rota (?r=) veya canlı takip (?canli=) linki açıldıysa
+  const _p=new URLSearchParams(location.search);
+  const _r=_p.get("r"), _canli=_p.get("canli");
+  $("#izAc").href=location.pathname; // "Patika'yı Aç" temiz adrese gider
+  const izleyiciModu=!!(_r||_canli);
+  if(!izleyiciModu)gpsBaslat(); // izleyicide konum izni isteme
   poileriCiz();
   rotaListeCiz();
   rozetCiz();
+  if(_r)izleyiciRotaAc(_r);
+  else if(_canli)izleyiciCanliAc(_canli);
   // bulut oturumu (varsa) — giriş/çıkışta ayarları tazele
   Bulut.oturumDinle(()=>{ if($("#ekran-ayarlar").classList.contains("active")) hesapCiz(); });
   // uygulama içi güncelleme kontrolü
