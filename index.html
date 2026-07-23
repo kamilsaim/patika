@@ -149,6 +149,22 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--blaze);outline-o
 .kutu .hud-num{font-size:22px}
 #profil{width:100%;height:110px;display:block;margin-top:12px}
 .detay-alt{padding:0 16px 16px}
+/* rota düzenleme paneli */
+#duzenlePanel{display:none;flex-direction:column;gap:9px;padding:12px 16px 14px;overflow-y:auto}
+#detay.duzenle #duzenlePanel{display:flex}
+#detay.duzenle .detay-alt{display:none}
+#detay.duzenle #detayMap{height:52%}
+.dz-bilgi{color:var(--muted);font-size:13px}
+.dz-bilgi b{color:var(--text);font-family:var(--font-num);font-size:16px}
+.dz-ipucu{color:var(--blaze-soft);font-size:12px}
+.dz-mod{display:flex;gap:6px}
+.dz-mod button{flex:1;background:var(--surface2);border:1px solid var(--line);color:var(--muted);
+  border-radius:10px;padding:9px 3px;font-size:12px;font-weight:600}
+.dz-mod button.secili{border-color:var(--blaze);color:var(--text);background:rgba(230,58,33,.14)}
+.dz-arac{display:flex;gap:8px}
+.dz-arac button{flex:1;background:var(--surface2);border:1px solid var(--line);color:var(--text);
+  border-radius:10px;padding:10px;font-size:13px;font-weight:600}
+.dz-arac button:active{background:var(--surface)}
 
 /* ---------- izleyici (paylaşılan rota / canlı) ---------- */
 #izleyici{position:fixed;inset:0;z-index:1500;background:var(--bg);display:none;flex-direction:column}
@@ -506,6 +522,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--blaze);outline-o
   <div class="detay-bar">
     <button class="ikonbtn" id="btnDetayKapat"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
     <h2 id="detayBaslik"></h2>
+    <button class="ikonbtn" id="btnDuzenle" aria-label="Düzenle"><svg viewBox="0 0 24 24"><path d="M4 20h4L18 10l-4-4L4 16v4zM14 6l4 4"/></svg></button>
     <button class="ikonbtn" id="btnYayinla" aria-label="Yayınla"><svg viewBox="0 0 24 24"><path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7M16 6l-4-4-4 4M12 2v14"/></svg></button>
     <button class="ikonbtn" id="btnGpx" aria-label="GPX dışa aktar"><svg viewBox="0 0 24 24"><path d="M12 15V3M7 8l5-5 5 5M4 21h16"/></svg></button>
     <button class="ikonbtn" id="btnSil" aria-label="Sil"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14"/></svg></button>
@@ -514,6 +531,23 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--blaze);outline-o
   <div class="scroll detay-alt">
     <div class="istat-grid" id="detayIstat" style="padding-left:0;padding-right:0"></div>
     <canvas id="profil"></canvas>
+  </div>
+  <div id="duzenlePanel">
+    <div class="dz-bilgi"><b id="dzKalan">0</b> nokta kalacak · <span id="dzSil">0</span> silinecek</div>
+    <div class="dz-ipucu" id="dzIpucu">Haritada silmek istediğin noktalara dokun</div>
+    <div class="dz-mod">
+      <button data-m="sil" class="secili">🗑 Nokta sil</button>
+      <button data-m="bas">⭰ Baş buda</button>
+      <button data-m="son">Son buda ⭲</button>
+    </div>
+    <div class="dz-arac">
+      <button id="dzOto">⚡ Otomatik temizle</button>
+      <button id="dzAd">✎ Ad değiştir</button>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" id="dzVazgec">Vazgeç</button>
+      <button class="btn btn-blaze" id="dzKaydet">Kaydet</button>
+    </div>
   </div>
 </div>
 
@@ -907,10 +941,14 @@ async function rotaListeCiz(){
 let detayMap=null, aktifDetay=null;
 async function detayAc(id){
   const a=await dbAl("aktiviteler",id);if(!a)return;
+  const acikMi=$("#detay").classList.contains("acik");
   aktifDetay=a;
+  duzenleAktif=false;$("#detay").classList.remove("duzenle");
+  if(detayMap&&detayMap._noktaKatman)detayMap._noktaKatman.clearLayers();
   $("#detayBaslik").textContent=a.ad;
   $("#btnYayinla").style.display=Bulut.yapilandirildi()?"":"none";
   $("#detay").classList.add("acik");
+  if(!acikMi)history.pushState({patika:"detay"},""); // geri tuşu detayı kapatsın
   if(!detayMap){detayMap=L.map("detayMap",{zoomControl:false});
     katmanYukle(detayMap,aktifKatman||"sokak");
     detayMap._iz=L.polyline([],{color:"#E63A21",weight:4}).addTo(detayMap);}
@@ -924,7 +962,7 @@ async function detayAc(id){
   ].map(([v,l])=>`<div class="kutu"><div class="hud-num">${v}</div><div class="hud-lbl">${l}</div></div>`).join("");
   profilCiz(a);
 }
-$("#btnDetayKapat").onclick=()=>$("#detay").classList.remove("acik");
+$("#btnDetayKapat").onclick=()=>history.back(); // popstate detayı kapatır
 $("#btnSil").onclick=()=>{
   if(!aktifDetay)return;
   const id=aktifDetay.id;
@@ -935,6 +973,118 @@ $("#btnSil").onclick=()=>{
     rotaListeCiz();istatCiz();toast("Rota silindi");
   });
 };
+
+/* =============== rota düzenleme =============== */
+let duzenleAktif=false, duzenleMod="sil", silinecek=new Set(), dzMarkerlar=[];
+function metrikHesapla(n){
+  let mesafeT=0,hareket=0,tirmanis=0,maxHiz=0;
+  let sonEle = n[0]&&n[0][2]!=null ? n[0][2] : null;
+  for(let i=1;i<n.length;i++){
+    const a=n[i-1],b=n[i];
+    const d=mesafe(a,b), dt=(b[3]-a[3])/1000;
+    if(d>0)mesafeT+=d;
+    if(dt>0){const hiz=d/dt; if(hiz*3.6<90){ if(hiz>0.3)hareket+=dt; if(hiz*3.6>maxHiz)maxHiz=hiz*3.6; }}
+    if(b[2]!=null){ if(sonEle==null)sonEle=b[2]; else{const fark=b[2]-sonEle; if(Math.abs(fark)>=2){if(fark>0)tirmanis+=fark;sonEle=b[2];}} }
+  }
+  const gecen=(n[n.length-1][3]-n[0][3])/1000;
+  return {mesafe:Math.round(mesafeT),hareketSn:Math.round(hareket),gecenSn:Math.round(gecen),
+    tirmanis:Math.round(tirmanis),maxHiz:Math.round(maxHiz*10)/10,
+    ortHiz:hareket>0?Math.round(mesafeT/hareket*3.6*10)/10:0};
+}
+function sicramalar(n){ // imkânsız hızla ışınlanıp geri dönen noktalar
+  const S=120/3.6, bayrak=new Set();
+  for(let i=1;i<n.length-1;i++){
+    const dIn=mesafe(n[i-1],n[i]), tIn=(n[i][3]-n[i-1][3])/1000;
+    const dOut=mesafe(n[i],n[i+1]), tOut=(n[i+1][3]-n[i][3])/1000;
+    const vIn=tIn>0?dIn/tIn:0, vOut=tOut>0?dOut/tOut:0;
+    if(vIn>S && vOut>S) bayrak.add(i);
+  }
+  return bayrak;
+}
+function duzenleBaslat(){
+  if(!aktifDetay||!detayMap)return;
+  duzenleAktif=true; duzenleMod="sil"; silinecek=new Set();
+  $("#detay").classList.add("duzenle");
+  $$("#duzenlePanel .dz-mod button").forEach(b=>b.classList.toggle("secili",b.dataset.m==="sil"));
+  $("#dzIpucu").textContent="Haritada silmek istediğin noktalara dokun";
+  if(!detayMap._noktaKatman)detayMap._noktaKatman=L.layerGroup().addTo(detayMap);
+  markerlariCiz(); dzGuncelle();
+  setTimeout(()=>detayMap.invalidateSize(),60);
+}
+function markerlariCiz(){
+  detayMap._noktaKatman.clearLayers(); dzMarkerlar=[];
+  aktifDetay.noktalar.forEach((p,i)=>{
+    const m=L.circleMarker([p[0],p[1]],{radius:5,weight:1,color:"#fff",
+      fillColor:silinecek.has(i)?"#E63A21":"#7FB56B",fillOpacity:1});
+    m.on("click",()=>noktaTikla(i));
+    m.addTo(detayMap._noktaKatman); dzMarkerlar.push(m);
+  });
+  onizlemeCiz();
+}
+function noktaTikla(i){
+  if(duzenleMod==="sil"){ silinecek.has(i)?silinecek.delete(i):silinecek.add(i); }
+  else if(duzenleMod==="bas"){ for(let j=0;j<i;j++)silinecek.add(j); }
+  else if(duzenleMod==="son"){ for(let j=i+1;j<aktifDetay.noktalar.length;j++)silinecek.add(j); }
+  renkGuncelle(); onizlemeCiz(); dzGuncelle();
+}
+function renkGuncelle(){ dzMarkerlar.forEach((m,i)=>m.setStyle({fillColor:silinecek.has(i)?"#E63A21":"#7FB56B"})); }
+function onizlemeCiz(){ detayMap._iz.setLatLngs(aktifDetay.noktalar.filter((_,i)=>!silinecek.has(i)).map(p=>[p[0],p[1]])); }
+function dzGuncelle(){ const t=aktifDetay.noktalar.length; $("#dzKalan").textContent=t-silinecek.size; $("#dzSil").textContent=silinecek.size; }
+$$("#duzenlePanel .dz-mod button").forEach(b=>b.onclick=()=>{
+  duzenleMod=b.dataset.m;
+  $$("#duzenlePanel .dz-mod button").forEach(x=>x.classList.toggle("secili",x===b));
+  $("#dzIpucu").textContent = duzenleMod==="sil"?"Haritada silmek istediğin noktalara dokun"
+    : duzenleMod==="bas"?"Yeni BAŞLANGIÇ noktasına dokun (öncesi silinir)"
+    : "Yeni BİTİŞ noktasına dokun (sonrası silinir)";
+});
+$("#dzOto").onclick=()=>{
+  const s=sicramalar(aktifDetay.noktalar); s.forEach(i=>silinecek.add(i));
+  renkGuncelle(); onizlemeCiz(); dzGuncelle();
+  toast(s.size?`⚡ ${s.size} sıçrama işaretlendi`:"Belirgin sıçrama yok");
+};
+$("#dzAd").onclick=()=>{
+  const a=aktifDetay;
+  modalAc(`<h2>Rota Adı</h2>
+    <div class="form-satir"><input id="mYeniAd" value="${(a.ad||"").replace(/"/g,"&quot;")}" maxlength="60"></div>
+    <div class="modal-btns"><button class="btn btn-ghost" id="mVaz">Vazgeç</button>
+    <button class="btn btn-blaze" id="mKaydetAd">Kaydet</button></div>`);
+  $("#mVaz").onclick=modalKapat;
+  $("#mKaydetAd").onclick=async()=>{
+    const yeni=$("#mYeniAd").value.trim(); if(!yeni){toast("Ad boş olamaz");return;}
+    a.ad=yeni; await dbYaz("aktiviteler",a);
+    if(a.bulutId){try{await Bulut.guncelle("ptk_rotalar",a.bulutId,{ad:yeni});}catch(e){}}
+    $("#detayBaslik").textContent=yeni; modalKapat(); rotaListeCiz(); toast("✔ Ad güncellendi");
+  };
+};
+$("#dzVazgec").onclick=()=>duzenleBitir(false);
+$("#dzKaydet").onclick=()=>{
+  const n=aktifDetay.noktalar.filter((_,i)=>!silinecek.has(i));
+  if(n.length<2){toast("En az 2 nokta kalmalı");return;}
+  onayModalAc("Değişiklikleri kaydet",`${silinecek.size} nokta silinecek, rota metrikleri yeniden hesaplanacak.`,"Kaydet",async()=>{
+    const a=aktifDetay; a.noktalar=n; Object.assign(a,metrikHesapla(n));
+    await dbYaz("aktiviteler",a);
+    if(a.bulutId){
+      try{
+        const [bLat,bLng]=bulanik(n[0][0],n[0][1]);
+        const [eLat,eLng]=bulanik(n[n.length-1][0],n[n.length-1][1]);
+        await Bulut.guncelle("ptk_rotalar",a.bulutId,{
+          noktalar:n, mesafe:a.mesafe, hareket_sn:a.hareketSn, gecen_sn:a.gecenSn,
+          tirmanis:a.tirmanis, max_hiz:a.maxHiz, ort_hiz:a.ortHiz, bbox:bboxEwkt(n),
+          baslangic_bulanik:ewktPoint(bLat,bLng), bitis_bulanik:ewktPoint(eLat,eLng)});
+      }catch(e){console.error("[Patika] düzenleme bulut:",e);}
+    }
+    duzenleBitir(true); rotaListeCiz(); istatCiz(); toast("✔ Rota güncellendi");
+    detayAc(a.id);
+  });
+};
+function duzenleBitir(kaydedildi){
+  duzenleAktif=false;
+  $("#detay").classList.remove("duzenle");
+  if(detayMap&&detayMap._noktaKatman)detayMap._noktaKatman.clearLayers();
+  if(detayMap&&aktifDetay)detayMap._iz.setLatLngs(aktifDetay.noktalar.map(p=>[p[0],p[1]]));
+  setTimeout(()=>{if(detayMap)detayMap.invalidateSize();},60);
+}
+$("#btnDuzenle").onclick=duzenleBaslat;
 
 /* =============== rota yayınlama (bulut) =============== */
 const GIZ={
@@ -1104,9 +1254,11 @@ function uclariBudama(ll,metre){ // gizlilik: başlangıç/bitiş yakınını k�
 }
 let izAktifRota=null, izStandalone=false; // izStandalone: link ile dışarıdan mı açıldı
 async function izleyiciRotaAc(id){
+  const acikMi=$("#izleyici").classList.contains("acik");
   $("#izleyici").classList.add("acik");$("#izleyici").classList.remove("canli");
   $("#izEkle").style.display="none";izAktifRota=null;
   $("#izAc").style.display=izStandalone?"":"none";
+  if(!acikMi&&!izStandalone)history.pushState({patika:"iz"},""); // geri tuşu izleyiciyi kapatsın
   izMapKur();setTimeout(()=>izMap.invalidateSize(),60);
   try{
     const r=(await Bulut.getir("ptk_rotalar",{id}))[0];
@@ -1168,11 +1320,19 @@ async function izleyiciCanliAc(kod){
   }
 }
 
-$("#izKapat").onclick=()=>{
+function izleyiciKapatIc(){
   if(izKanal){try{Bulut.istemci().removeChannel(izKanal);}catch(e){}izKanal=null;}
   $("#izleyici").classList.remove("acik","canli");
-  history.replaceState(null,"",location.pathname); // ?r= / ?canli= temizle
+}
+$("#izKapat").onclick=()=>{
+  if(izStandalone){ izleyiciKapatIc(); history.replaceState(null,"",location.pathname); }
+  else history.back(); // içeriden açıldıysa eklenen geçmiş kaydını geri al → popstate kapatır
 };
+// donanım/tarayıcı geri tuşu: açık katmanı kapat (uygulamadan çıkma)
+window.addEventListener("popstate",()=>{
+  if($("#izleyici").classList.contains("acik")){ izleyiciKapatIc(); return; }
+  if($("#detay").classList.contains("acik")){ if(duzenleAktif)duzenleBitir(false); $("#detay").classList.remove("acik"); return; }
+});
 $("#izEkle").onclick=async()=>{
   const r=izAktifRota; if(!r)return;
   onayModalAc("Rotayı kendine ekle","Bu rota kendi rotalarına kopyalanacak.","Ekle",async()=>{
@@ -1487,7 +1647,7 @@ window.addEventListener("pageshow",vpTazele);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden)vpTazele(); });
 
 /* =============== gezinme & başlangıç =============== */
-const SURUM="1.8.2";
+const SURUM="1.9.0";
 $("#nav").addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
   $$("#nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");
@@ -1495,7 +1655,7 @@ $("#nav").addEventListener("click",e=>{
   $("#ekran-"+b.dataset.ekran).classList.add("active");
   if(b.dataset.ekran==="kayit")setTimeout(()=>map.invalidateSize(),60);
   if(b.dataset.ekran==="istatistik")istatCiz();
-  $("#detay").classList.remove("acik"); // sekme değişince açık rota detayını kapat
+  $("#detay").classList.remove("acik","duzenle");duzenleAktif=false; // sekme değişince açık detayı/düzenlemeyi kapat
   if(b.dataset.ekran==="rotalar")rotaListeCiz();
   if(b.dataset.ekran==="kesfet")kesfetCiz();
   if(b.dataset.ekran==="rozetler")rozetCiz();

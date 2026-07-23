@@ -60,6 +60,7 @@ Tek dosyalık bir HTML uygulaması — çerçeve, derleme veya paket yöneticisi
 
 | Sürüm | Öne çıkanlar |
 |-------|--------------|
+| **1.9** | Rota düzenleme: hatalı GPS noktalarını silme, baş/son budama, otomatik sıçrama temizliği, rota adını değiştirme (metrikler yeniden hesaplanır); donanım geri tuşu artık detay/izleyiciyi kapatıyor |
 | **1.8** | Keşfet sekmesi: herkese açık yayınlanan rotalar herkese görünür; paylaşılan bir rotayı tek dokunuşla kendi rotalarına ekleme; izleyicide geri butonu |
 | **1.7** | Bulut kütüphane senkronu: giriş yapıp bulut yedeklemeyi açınca rotaların tüm cihazlarında görünür (yükle + indir; yeni kayıtlar otomatik yedeklenir) |
 | **1.6** | Bulut paylaşımı: rotanı özel / bağlantılı / herkese açık yayınla; başlangıç–bitiş gizliliği için uç noktalar bulanıklaştırılır; canlı konum paylaşımı (kayıt sırasında link üret, sevdiklerin tarayıcıdan canlı izlesin); paylaşılan rota ve canlı takip için izleyici sayfaları |
