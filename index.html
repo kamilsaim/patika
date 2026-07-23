@@ -981,7 +981,8 @@ async function yayinKaydet(a,u){
         kullanici_id:u.id, ad:a.ad, tip:a.tip, aciklama:null, gizlilik:yayinGiz,
         noktalar:n, bbox:bboxEwkt(n),
         baslangic_bulanik:ewktPoint(bLat,bLng), bitis_bulanik:ewktPoint(eLat,eLng),
-        mesafe:a.mesafe, hareket_sn:a.hareketSn, tirmanis:a.tirmanis||0,
+        mesafe:Math.round(a.mesafe||0), hareket_sn:Math.round(a.hareketSn||0),
+        tirmanis:Math.round(a.tirmanis||0),
         max_hiz:a.maxHiz||0, ort_hiz:a.ortHiz||0, tarih:new Date(a.tarih).toISOString()
       };
       const r=await Bulut.ekle("ptk_rotalar",payload); id=r[0].id;
@@ -990,7 +991,7 @@ async function yayinKaydet(a,u){
     modalKapat();
     if(yayinGiz!=="ozel") kopyala(rotaLinki(id));
     else toast("✔ Buluta kaydedildi");
-  }catch(err){ toast("Hata: "+(err.message||"yayınlanamadı")); }
+  }catch(err){ console.error("[Patika] yayın hatası:",err); toast("Hata: "+(err.message||err.details||"yayınlanamadı")); }
 }
 function yayindanKaldir(a){
   onayModalAc("Yayından kaldır","Bu rota buluttan silinecek; yerel kaydın kalır.","Kaldır",async()=>{
@@ -1366,7 +1367,7 @@ window.addEventListener("pageshow",vpTazele);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden)vpTazele(); });
 
 /* =============== gezinme & başlangıç =============== */
-const SURUM="1.6.0";
+const SURUM="1.6.1";
 $("#nav").addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
   $$("#nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");
