@@ -1076,7 +1076,7 @@ window.addEventListener("pageshow",vpTazele);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden)vpTazele(); });
 
 /* =============== gezinme & başlangıç =============== */
-const SURUM="1.4.0";
+const SURUM="1.5.0";
 $("#nav").addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
   $$("#nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");

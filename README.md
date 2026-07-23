@@ -8,7 +8,7 @@
 
 _Yürüyüş, koşu ve bisiklet için rota takibi; kamp yerlerini işaretleyip yorumlayabildiğin, rotalarını dışarı aktarabildiğin bir cep uygulaması._
 
-[**▶ Uygulamayı Aç**](https://kamilsaim.web.app) &nbsp;·&nbsp; [Ayna: GitHub Pages](https://kamilsaim.github.io/patika/)
+[**▶ Uygulamayı Aç**](https://kamilsaim.github.io/patika/)
 
 🌐 **Web sitesi:** [kamilsaim.web.app](https://kamilsaim.web.app)
 
@@ -60,6 +60,7 @@ Tek dosyalık bir HTML uygulaması — çerçeve, derleme veya paket yöneticisi
 
 | Sürüm | Öne çıkanlar |
 |-------|--------------|
+| **1.5** | Hesap girişi (e-posta bağlantısı ve Google) — bulut paylaşımının ilk adımı; tüm pencereler ekran ortasında açılıyor; silme işlemlerinde onay penceresi |
 | **1.4** | iOS'ta ekrana oturma sorunları giderildi: alt menü artık ekranın dibine oturuyor, dokunuşlar şaşmıyor |
 | **1.3** | Kano ve kayak eklendi; aktivite tipine göre akıllı otomatik duraklama; iOS güvenli alan düzeltmeleri |
 | **1.2** | Splash ekranı, ayarlar sekmesi (istatistik, yedekleme, veri silme), PWA (ana ekrana ekle) desteği |
