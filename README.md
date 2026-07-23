@@ -8,7 +8,9 @@
 
 _Yürüyüş, koşu ve bisiklet için rota takibi; kamp yerlerini işaretleyip yorumlayabildiğin, rotalarını dışarı aktarabildiğin bir cep uygulaması._
 
-[**▶ Uygulamayı Aç**](https://kamilsaim.github.io/patika/)
+[**▶ Uygulamayı Aç**](https://kamilsaim.web.app) &nbsp;·&nbsp; [Ayna: GitHub Pages](https://kamilsaim.github.io/patika/)
+
+🌐 **Web sitesi:** [kamilsaim.web.app](https://kamilsaim.web.app)
 
 </div>
 

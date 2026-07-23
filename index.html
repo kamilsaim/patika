@@ -171,9 +171,9 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--blaze);outline-o
 .rozet small{color:var(--muted);font-size:10.5px;line-height:1.3}
 
 /* ---------- modal & toast ---------- */
-#ortu{position:fixed;inset:0;z-index:2000;background:rgba(6,9,8,.6);display:none;align-items:flex-end}
+#ortu{position:fixed;inset:0;z-index:2000;background:rgba(6,9,8,.6);display:none;align-items:center;justify-content:center;padding:20px}
 #ortu.acik{display:flex}
-#modal{background:var(--surface);border-radius:20px 20px 0 0;width:100%;padding:18px 16px calc(18px + var(--safe-b))}
+#modal{background:var(--surface);border:1px solid var(--line);border-radius:20px;width:100%;max-width:420px;padding:18px 16px;max-height:calc(100% - 40px);overflow-y:auto}
 #modal h2{font-family:var(--font-num);font-size:20px;font-weight:600;margin-bottom:12px}
 .form-satir{margin-bottom:10px}
 .form-satir label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
@@ -344,6 +344,29 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--blaze);outline-o
         <div class="surum" id="ayarSurum">v1.2.0</div>
       </div>
 
+      <div class="ayar-grup" id="ayarHesapGrup" style="display:none">
+        <h3>Hesap</h3>
+        <!-- girişsiz görünüm -->
+        <div id="hesapCikis">
+          <div class="ayar-satir bagli" id="ayarGirisAc">
+            <div style="flex:1"><div class="ana">Giriş yap</div>
+              <div class="alt">Rotalarını yayınla, canlı konum paylaş</div></div>
+            <div class="ok">›</div>
+          </div>
+        </div>
+        <!-- girişli görünüm -->
+        <div id="hesapGiris" style="display:none">
+          <div class="ayar-satir">
+            <div style="flex:1"><div class="ana" id="hesapEposta">—</div>
+              <div class="alt">Giriş yapıldı</div></div>
+          </div>
+          <div class="ayar-satir bagli tehlike" id="ayarCikisYap">
+            <div style="flex:1"><div class="ana">Çıkış yap</div></div>
+            <div class="ok">›</div>
+          </div>
+        </div>
+      </div>
+
       <div class="ayar-grup">
         <h3>Toplam</h3>
         <div class="ayar-satir"><div class="ana">Kayıtlı aktivite</div><div class="sag" id="istAktSayi">0</div></div>
@@ -439,6 +462,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--blaze);outline-o
 
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* =============== yardımcılar =============== */
 const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
@@ -477,6 +501,69 @@ const dbYaz=(st,v)=>new Promise((res,rej)=>{const t=db.transaction(st,"readwrite
 const dbSil=(st,id)=>new Promise((res,rej)=>{const t=db.transaction(st,"readwrite");t.objectStore(st).delete(id);t.oncomplete=res;t.onerror=rej;});
 const dbTum=st=>new Promise((res,rej)=>{const rq=db.transaction(st).objectStore(st).getAll();rq.onsuccess=()=>res(rq.result);rq.onerror=rej;});
 const dbAl=(st,id)=>new Promise((res,rej)=>{const rq=db.transaction(st).objectStore(st).get(id);rq.onsuccess=()=>res(rq.result);rq.onerror=rej;});
+
+/* =============== bulut (Supabase) ===============
+   v2 — opsiyonel bulut katmanı. Girişsiz kullanıcıda hiç devreye girmez.
+   Anon (publishable) anahtar istemcide bulunması güvenlidir; RLS korur.
+   Kurulum: BULUT_ANON değerini Supabase panel → Settings → API → anon public
+   anahtarıyla değiştir. Boş kaldıkça tüm bulut özellikleri sessizce kapalıdır. */
+const BULUT_URL="https://mtialokiudmgdctznfiz.supabase.co";
+const BULUT_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im10aWFsb2tpdWRtZ2RjdHpuZml6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwODE5NjgsImV4cCI6MjA5NDY1Nzk2OH0.aznQX7ZiwO031n-xjDFr1bGTzgakoaOBWkGu7wps120";
+const Bulut=(()=>{
+  let sb=null;
+  const yapilandirildi=()=> !!(window.supabase && BULUT_URL && BULUT_ANON && BULUT_ANON!=="SENIN_ANON_ANAHTARIN");
+  function istemci(){
+    if(!yapilandirildi()) return null;
+    if(!sb) sb=window.supabase.createClient(BULUT_URL,BULUT_ANON,{
+      auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
+    });
+    return sb;
+  }
+  // --- oturum / auth ---
+  async function kullanici(){
+    const c=istemci(); if(!c) return null;
+    const {data}=await c.auth.getUser();
+    return data?.user||null;
+  }
+  async function girisMagic(eposta){
+    const c=istemci(); if(!c) throw new Error("bulut kapalı");
+    return c.auth.signInWithOtp({email:eposta,options:{emailRedirectTo:location.href.split("#")[0]}});
+  }
+  async function girisGoogle(){
+    const c=istemci(); if(!c) throw new Error("bulut kapalı");
+    return c.auth.signInWithOAuth({provider:"google",options:{redirectTo:location.href.split("#")[0]}});
+  }
+  async function cikis(){ const c=istemci(); if(c) await c.auth.signOut(); }
+  function oturumDinle(cb){
+    const c=istemci(); if(!c) return ()=>{};
+    const {data}=c.auth.onAuthStateChange((_e,oturum)=>cb(oturum?.user||null));
+    return ()=>data.subscription.unsubscribe();
+  }
+  // --- genel veri erişimi (insert/select/update/delete) ---
+  async function ekle(tablo,kayit){
+    const c=istemci(); if(!c) throw new Error("bulut kapalı");
+    const {data,error}=await c.from(tablo).insert(kayit).select();
+    if(error) throw error; return data;
+  }
+  async function getir(tablo,filtre){
+    const c=istemci(); if(!c) throw new Error("bulut kapalı");
+    let q=c.from(tablo).select("*");
+    if(filtre) for(const [k,v] of Object.entries(filtre)) q=q.eq(k,v);
+    const {data,error}=await q;
+    if(error) throw error; return data;
+  }
+  async function guncelle(tablo,id,degisim){
+    const c=istemci(); if(!c) throw new Error("bulut kapalı");
+    const {data,error}=await c.from(tablo).update(degisim).eq("id",id).select();
+    if(error) throw error; return data;
+  }
+  async function sil(tablo,id){
+    const c=istemci(); if(!c) throw new Error("bulut kapalı");
+    const {error}=await c.from(tablo).delete().eq("id",id);
+    if(error) throw error;
+  }
+  return {yapilandirildi,istemci,kullanici,girisMagic,girisGoogle,cikis,oturumDinle,ekle,getir,guncelle,sil};
+})();
 
 /* =============== harita =============== */
 let map, izKatman, poiKatman, konumIsaret, dogrulukHalka, sonKonum=null;
@@ -526,7 +613,11 @@ async function poileriCiz(){
      .bindPopup(`<b>${POI_TIP[p.tip].ik} ${POI_TIP[p.tip].ad}</b>${p.not?p.not:""}<br>
        <span class="pk-sil" onclick="poiSil('${p.id}')">Sil</span>`);});
 }
-async function poiSil(id){await dbSil("pois",id);poileriCiz();toast("İşaret silindi");}
+function poiSil(id){
+  onayModalAc("İşareti sil","Bu yer işareti kaldırılsın mı?","Sil",async()=>{
+    await dbSil("pois",id);poileriCiz();toast("İşaret silindi");
+  });
+}
 
 /* =============== GPS izleme =============== */
 let watchId=null, wakeLock=null;
@@ -645,6 +736,17 @@ function modalAc(html){$("#modal").innerHTML=html;$("#ortu").classList.add("acik
 function modalKapat(){$("#ortu").classList.remove("acik");}
 $("#ortu").addEventListener("click",e=>{if(e.target.id==="ortu")modalKapat();});
 
+/* ortak onay penceresi (silme vb. için native confirm yerine) */
+function onayModalAc(baslik,mesaj,onayEtiket,onayFn){
+  modalAc(`<h2>${baslik}</h2>
+    <p style="color:var(--muted);font-size:13px;line-height:1.5;margin:0 0 4px">${mesaj}</p>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" id="mHayir">Vazgeç</button>
+      <button class="btn btn-blaze" id="mEvet">${onayEtiket}</button></div>`);
+  $("#mHayir").onclick=modalKapat;
+  $("#mEvet").onclick=()=>{modalKapat();onayFn();};
+}
+
 /* kayıt sonu: isim ver & kaydet */
 function kayitModalAc(mes){
   modalAc(`<h2>Aktiviteyi Kaydet</h2>
@@ -729,12 +831,14 @@ async function detayAc(id){
   profilCiz(a);
 }
 $("#btnDetayKapat").onclick=()=>$("#detay").classList.remove("acik");
-$("#btnSil").onclick=async()=>{
+$("#btnSil").onclick=()=>{
   if(!aktifDetay)return;
-  if(!confirm("Bu rota silinsin mi?"))return;
-  await dbSil("aktiviteler",aktifDetay.id);
-  $("#detay").classList.remove("acik");
-  rotaListeCiz();istatCiz();toast("Rota silindi");
+  const id=aktifDetay.id;
+  onayModalAc("Rotayı sil","Bu rota kalıcı olarak silinecek.","Sil",async()=>{
+    await dbSil("aktiviteler",id);
+    $("#detay").classList.remove("acik");
+    rotaListeCiz();istatCiz();toast("Rota silindi");
+  });
 };
 
 /* yükseklik profili */
@@ -998,7 +1102,43 @@ async function ayarlariCiz(){
   // toggle durumu
   const otoAcik=localStorage.getItem("patikaOtoDur")!=="0";
   $("#togOtoDur").classList.toggle("acik",otoAcik);
+  hesapCiz();
 }
+
+/* ---- hesap (bulut oturum) ---- */
+async function hesapCiz(){
+  if(!Bulut.yapilandirildi()){$("#ayarHesapGrup").style.display="none";return;}
+  $("#ayarHesapGrup").style.display="";
+  let u=null; try{u=await Bulut.kullanici();}catch(e){}
+  const girisli=!!u;
+  $("#hesapGiris").style.display=girisli?"":"none";
+  $("#hesapCikis").style.display=girisli?"none":"";
+  if(girisli)$("#hesapEposta").textContent=u.email||u.user_metadata?.email||"Hesabım";
+}
+function girisModalAc(){
+  modalAc(`<h2>Giriş Yap</h2>
+    <div class="form-satir"><label>E-posta ile bağlantı al</label>
+      <input id="mEposta" type="email" inputmode="email" autocomplete="email" placeholder="ornek@eposta.com"></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" id="mVazgec">Vazgeç</button>
+      <button class="btn btn-blaze" id="mMagic">Bağlantı gönder</button></div>
+    <div style="text-align:center;color:var(--muted);font-size:12px;margin:12px 0 6px">veya</div>
+    <button class="btn btn-ghost" id="mGoogle" style="width:100%">Google ile giriş</button>`);
+  $("#mVazgec").onclick=modalKapat;
+  $("#mMagic").onclick=async()=>{
+    const e=$("#mEposta").value.trim();
+    if(!e){toast("E-posta gir");return;}
+    try{await Bulut.girisMagic(e);modalKapat();toast("✔ Bağlantı e-postana gönderildi");}
+    catch(err){toast("Hata: "+(err.message||"gönderilemedi"));}
+  };
+  $("#mGoogle").onclick=async()=>{
+    try{await Bulut.girisGoogle();}catch(err){toast("Hata: "+(err.message||"açılamadı"));}
+  };
+}
+$("#ayarGirisAc").onclick=girisModalAc;
+$("#ayarCikisYap").onclick=async()=>{
+  await Bulut.cikis();toast("Çıkış yapıldı");hesapCiz();
+};
 $("#ayarOtoDurToggle").onclick=()=>{
   const acik=$("#togOtoDur").classList.toggle("acik");
   localStorage.setItem("patikaOtoDur", acik?"1":"0");
@@ -1033,14 +1173,17 @@ $("#ayarGpxTumu").onclick=async()=>{
   l.click();URL.revokeObjectURL(u);
   toast(`✔ ${akts.length} rota indirildi`);
 };
-$("#ayarSil").onclick=async()=>{
-  if(!confirm("Tüm aktiviteler, işaretler ve rozetler kalıcı olarak silinsin mi?\n\nBu işlem geri alınamaz."))return;
-  if(!confirm("Emin misin? Son onay."))return;
-  const stlar=["aktiviteler","pois","meta"];
-  await Promise.all(stlar.map(st=>new Promise((r,rj)=>{
-    const t=db.transaction(st,"readwrite");t.objectStore(st).clear();t.oncomplete=r;t.onerror=rj;})));
-  toast("Tüm veriler silindi");
-  ayarlariCiz();rotaListeCiz();poileriCiz();rozetCiz();istatCiz();
+$("#ayarSil").onclick=()=>{
+  onayModalAc("Tüm verileri sil",
+    "Tüm aktiviteler, işaretler ve rozetler kalıcı olarak silinecek. Bu işlem geri alınamaz.","Sil",()=>{
+    onayModalAc("Emin misin?","Son onay — bütün Patika verilerin silinecek.","Evet, sil",async()=>{
+      const stlar=["aktiviteler","pois","meta"];
+      await Promise.all(stlar.map(st=>new Promise((r,rj)=>{
+        const t=db.transaction(st,"readwrite");t.objectStore(st).clear();t.oncomplete=r;t.onerror=rj;})));
+      toast("Tüm veriler silindi");
+      ayarlariCiz();rotaListeCiz();poileriCiz();rozetCiz();istatCiz();
+    });
+  });
 };
 $("#typeRow").addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
@@ -1059,6 +1202,8 @@ $("#btnPoi").onclick=()=>poiModalAc();
   poileriCiz();
   rotaListeCiz();
   rozetCiz();
+  // bulut oturumu (varsa) — giriş/çıkışta ayarları tazele
+  Bulut.oturumDinle(()=>{ if($("#ekran-ayarlar").classList.contains("active")) hesapCiz(); });
   // inline PWA manifest (base64 data URL)
   const iconUrl=document.querySelector('link[rel="icon"]').href;
   const manifest={name:"Patika",short_name:"Patika",description:"Yolunu kayıt et, anını yaşa",
