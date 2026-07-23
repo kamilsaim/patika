@@ -189,6 +189,16 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--blaze);outline-o
   overflow:hidden;text-overflow:ellipsis}
 #toast.acik{opacity:1;transform:translateX(-50%) translateY(0)}
 #toast.rozet{background:var(--surface2);color:var(--text);border:1px solid var(--blaze)}
+/* güncelleme şeridi (üstte) */
+#guncelleBar{position:fixed;left:0;right:0;top:0;z-index:2500;background:var(--blaze);color:#fff;
+  display:none;align-items:center;gap:10px;padding:calc(8px + var(--safe-t)) 14px 8px;font-size:13px;
+  box-shadow:0 2px 10px rgba(0,0,0,.35)}
+#guncelleBar.acik{display:flex}
+#guncelleBar .msg{flex:1;line-height:1.35}
+#guncelleBar .msg b{font-family:var(--font-num);font-weight:700}
+#guncelleBar button{background:#fff;color:var(--blaze);border:0;border-radius:9px;padding:7px 13px;
+  font-weight:700;font-size:13px;flex-shrink:0;cursor:pointer}
+#guncelleBar .kapat{background:transparent;color:#fff;opacity:.8;padding:7px 4px;font-size:18px;line-height:1}
 
 /* POI marker */
 .poi-ikon{font-size:20px;text-align:center;line-height:26px;
@@ -457,6 +467,11 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--blaze);outline-o
 </div>
 
 <!-- MODAL -->
+<div id="guncelleBar">
+  <div class="msg">Yeni sürüm hazır: <b id="guncelleYeni"></b></div>
+  <button id="guncelleBtn">Güncelle</button>
+  <button class="kapat" id="guncelleKapat" aria-label="Kapat">×</button>
+</div>
 <div id="ortu"><div id="modal"></div></div>
 <div id="toast"></div>
 
@@ -562,7 +577,16 @@ const Bulut=(()=>{
     const {error}=await c.from(tablo).delete().eq("id",id);
     if(error) throw error;
   }
-  return {yapilandirildi,istemci,kullanici,girisMagic,girisGoogle,cikis,oturumDinle,ekle,getir,guncelle,sil};
+  // güncel yayın sürümünü ptk_meta'dan canlı (cache'siz) okur
+  async function guncelSurum(){
+    const c=istemci(); if(!c) return null;
+    try{
+      const {data,error}=await c.from("ptk_meta").select("deger").eq("anahtar","guncel_surum").maybeSingle();
+      if(error) return null;
+      return data?.deger||null;
+    }catch(e){ return null; }
+  }
+  return {yapilandirildi,istemci,kullanici,girisMagic,girisGoogle,cikis,oturumDinle,ekle,getir,guncelle,sil,guncelSurum};
 })();
 
 /* =============== harita =============== */
@@ -1076,7 +1100,7 @@ window.addEventListener("pageshow",vpTazele);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden)vpTazele(); });
 
 /* =============== gezinme & başlangıç =============== */
-const SURUM="1.5.0";
+const SURUM="1.5.1";
 $("#nav").addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
   $$("#nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");
@@ -1139,6 +1163,28 @@ $("#ayarGirisAc").onclick=girisModalAc;
 $("#ayarCikisYap").onclick=async()=>{
   await Bulut.cikis();toast("Çıkış yapıldı");hesapCiz();
 };
+
+/* ---- uygulama içi güncelleme ---- */
+function surumBuyukMu(a,b){ // a > b  ?  ("1.5.1" > "1.5.0")
+  const pa=String(a).split("."),pb=String(b).split(".");
+  for(let i=0;i<3;i++){const x=+pa[i]||0,y=+pb[i]||0;if(x>y)return true;if(x<y)return false;}
+  return false;
+}
+async function guncellemeKontrol(){
+  if(!Bulut.yapilandirildi())return;
+  const uzak=await Bulut.guncelSurum();
+  if(uzak && surumBuyukMu(uzak,SURUM)){
+    $("#guncelleYeni").textContent="v"+uzak;
+    $("#guncelleBar").classList.add("acik");
+    $("#guncelleBtn").dataset.v=uzak;
+  }
+}
+$("#guncelleBtn").onclick=()=>{
+  const v=$("#guncelleBtn").dataset.v||Date.now();
+  // cache-bust: yeni sürüm numarasını sorgu dizesine koyup taze index.html çektir
+  location.replace(location.pathname+"?v="+encodeURIComponent(v));
+};
+$("#guncelleKapat").onclick=()=>$("#guncelleBar").classList.remove("acik");
 $("#ayarOtoDurToggle").onclick=()=>{
   const acik=$("#togOtoDur").classList.toggle("acik");
   localStorage.setItem("patikaOtoDur", acik?"1":"0");
@@ -1204,6 +1250,8 @@ $("#btnPoi").onclick=()=>poiModalAc();
   rozetCiz();
   // bulut oturumu (varsa) — giriş/çıkışta ayarları tazele
   Bulut.oturumDinle(()=>{ if($("#ekran-ayarlar").classList.contains("active")) hesapCiz(); });
+  // uygulama içi güncelleme kontrolü
+  guncellemeKontrol();
   // inline PWA manifest (base64 data URL)
   const iconUrl=document.querySelector('link[rel="icon"]').href;
   const manifest={name:"Patika",short_name:"Patika",description:"Yolunu kayıt et, anını yaşa",
