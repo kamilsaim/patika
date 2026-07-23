@@ -162,6 +162,10 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--blaze);outline-o
 #izleyici.canli #izCanliRozet{display:inline-block;animation:izYaniyor 1.4s ease-in-out infinite}
 @keyframes izYaniyor{50%{opacity:.45}}
 #izPanel .btn{margin-top:4px;text-decoration:none}
+#izKapat{position:absolute;top:calc(12px + var(--safe-t));left:12px;z-index:10;width:40px;height:40px;
+  display:flex;align-items:center;justify-content:center;background:rgba(16,22,19,.92);
+  border:1px solid var(--line);border-radius:11px}
+#izKapat svg{width:20px;height:20px;stroke:var(--text);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 /* ---------- istatistik ---------- */
 .seg{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:3px;margin-bottom:14px}
@@ -346,6 +350,12 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--blaze);outline-o
     <div class="scroll" id="rotaListe"></div>
   </section>
 
+  <!-- KEŞFET -->
+  <section class="screen" id="ekran-kesfet">
+    <div class="screen-head"><h1>Keşfet</h1><span class="sub">herkese açık rotalar</span></div>
+    <div class="scroll" id="kesfetListe"></div>
+  </section>
+
   <!-- İSTATİSTİK -->
   <section class="screen" id="ekran-istatistik">
     <div class="screen-head"><h1>İstatistik</h1><span class="sub" id="istTarih"></span></div>
@@ -469,6 +479,9 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--blaze);outline-o
     <button data-ekran="rotalar">
       <svg viewBox="0 0 24 24"><path d="M5 20c0-6 4-6 7-9s2-7 2-7M14 4l1.5 3L19 8"/><circle cx="5" cy="20" r="1.6" fill="currentColor" stroke="none"/></svg>
       Rotalar</button>
+    <button data-ekran="kesfet">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5 5-2z" fill="currentColor" stroke="none"/></svg>
+      Keşfet</button>
     <button data-ekran="istatistik">
       <svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg>
       İstatistik</button>
@@ -506,11 +519,13 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--blaze);outline-o
 
 <!-- İZLEYİCİ (paylaşılan rota / canlı takip) -->
 <div id="izleyici">
+  <button id="izKapat" aria-label="Geri"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
   <div id="izMap"></div>
   <div id="izPanel">
     <div id="izCanliRozet">● CANLI</div>
     <h2 id="izBaslik">Yükleniyor…</h2>
     <div class="istat-grid" id="izIstat"></div>
+    <button id="izEkle" class="btn btn-ghost" style="display:none">⬇ Rotayı kendime ekle</button>
     <a id="izAc" class="btn btn-blaze" href="?">Patika'yı Aç</a>
   </div>
 </div>
@@ -1090,14 +1105,18 @@ function uclariBudama(ll,metre){ // gizlilik: başlangıç/bitiş yakınını k�
   const kesit=ll.slice(bas, ll.length-son);
   return kesit.length>=2?kesit:ll;
 }
+let izAktifRota=null;
 async function izleyiciRotaAc(id){
-  $("#izleyici").classList.add("acik");
+  $("#izleyici").classList.add("acik");$("#izleyici").classList.remove("canli");
+  $("#izEkle").style.display="none";izAktifRota=null;
   izMapKur();setTimeout(()=>izMap.invalidateSize(),60);
   try{
     const r=(await Bulut.getir("ptk_rotalar",{id}))[0];
     if(!r){$("#izBaslik").textContent="Rota bulunamadı";return;}
+    izAktifRota=r;
     const u=await Bulut.kullanici();
     const sahip=u&&u.id===r.kullanici_id;
+    if(!sahip)$("#izEkle").style.display="block"; // başkasının rotası → kendine ekleyebilir
     let ll=(r.noktalar||[]).map(p=>[p[0],p[1]]);
     if(!sahip)ll=uclariBudama(ll,200);
     izMap._iz.setLatLngs(ll);
@@ -1118,6 +1137,7 @@ function izCanliIstat(hiz){
 }
 async function izleyiciCanliAc(kod){
   $("#izleyici").classList.add("acik","canli");
+  $("#izEkle").style.display="none";
   izMapKur();setTimeout(()=>izMap.invalidateSize(),60);
   $("#izBaslik").textContent="Canlı takip";
   let oturum;
@@ -1148,6 +1168,49 @@ async function izleyiciCanliAc(kod){
       .subscribe();
   }
 }
+
+$("#izKapat").onclick=()=>{
+  if(izKanal){try{Bulut.istemci().removeChannel(izKanal);}catch(e){}izKanal=null;}
+  $("#izleyici").classList.remove("acik","canli");
+  history.replaceState(null,"",location.pathname); // ?r= / ?canli= temizle
+};
+$("#izEkle").onclick=async()=>{
+  const r=izAktifRota; if(!r)return;
+  onayModalAc("Rotayı kendine ekle","Bu rota kendi rotalarına kopyalanacak.","Ekle",async()=>{
+    await dbYaz("aktiviteler",{
+      id:"a"+Date.now(), ad:r.ad, tip:r.tip, tarih:new Date(r.tarih).getTime(),
+      noktalar:r.noktalar||[], mesafe:r.mesafe||0, hareketSn:r.hareket_sn||0,
+      gecenSn:r.gecen_sn||r.hareket_sn||0, tirmanis:r.tirmanis||0,
+      maxHiz:r.max_hiz||0, ortHiz:r.ort_hiz||0
+    });
+    rotaListeCiz();istatCiz();toast("✔ Rotalarına eklendi");
+  });
+};
+
+/* =============== keşfet (herkese açık rotalar) =============== */
+async function kesfetCiz(){
+  const liste=$("#kesfetListe");
+  if(!Bulut.yapilandirildi()){liste.innerHTML=`<div class="bos"><b>Bulut kapalı.</b></div>`;return;}
+  liste.innerHTML=`<div class="bos">Yükleniyor…</div>`;
+  try{
+    let rotalar=await Bulut.getir("ptk_rotalar",{gizlilik:"herkese"});
+    rotalar.sort((a,b)=>new Date(b.tarih)-new Date(a.tarih));
+    rotalar=rotalar.slice(0,60);
+    if(!rotalar.length){liste.innerHTML=`<div class="bos"><b>Keşfette henüz rota yok.</b><br>
+      Bir rotanı "herkese açık" yayınla, ilk sen ol.</div>`;return;}
+    const esc=s=>(s||"").replace(/[<>&]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;"}[c]));
+    liste.innerHTML=rotalar.map(r=>`<div class="kart" onclick="kesfetAc('${r.id}')">
+      <h3>${TIP[r.tip]?TIP[r.tip].ik:"📍"} ${esc(r.ad)}</h3>
+      <div class="meta">${new Date(r.tarih).toLocaleDateString("tr-TR")}</div>
+      <div class="satir">
+        <span>${fmtKm(r.mesafe)}<small>km</small></span>
+        <span>${fmtSure(r.hareket_sn)}<small>süre</small></span>
+        <span>${r.ort_hiz||0}<small>ort km/s</small></span>
+        <span>${r.tirmanis||0}<small>tırmanış m</small></span>
+      </div></div>`).join("");
+  }catch(err){console.error("[Patika] keşfet:",err);liste.innerHTML=`<div class="bos">Keşfet yüklenemedi.</div>`;}
+}
+function kesfetAc(id){ izleyiciRotaAc(id); }
 
 /* =============== bulut kütüphane senkronu =============== */
 let syncCalisiyor=false;
@@ -1425,7 +1488,7 @@ window.addEventListener("pageshow",vpTazele);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden)vpTazele(); });
 
 /* =============== gezinme & başlangıç =============== */
-const SURUM="1.7.0";
+const SURUM="1.8.0";
 $("#nav").addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
   $$("#nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");
@@ -1434,6 +1497,7 @@ $("#nav").addEventListener("click",e=>{
   if(b.dataset.ekran==="kayit")setTimeout(()=>map.invalidateSize(),60);
   if(b.dataset.ekran==="istatistik")istatCiz();
   if(b.dataset.ekran==="rotalar")rotaListeCiz();
+  if(b.dataset.ekran==="kesfet")kesfetCiz();
   if(b.dataset.ekran==="rozetler")rozetCiz();
   if(b.dataset.ekran==="ayarlar")ayarlariCiz();
 });
