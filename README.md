@@ -60,6 +60,7 @@ Tek dosyalık bir HTML uygulaması — çerçeve, derleme veya paket yöneticisi
 
 | Sürüm | Öne çıkanlar |
 |-------|--------------|
+| **1.9.3** | Android uygulamasında arka plan GPS: kayıt artık ekran kapalıyken de sürüyor, eksik/dümdüz çizilen rota sorunu giderildi (tarayıcıda davranış aynı) |
 | **1.9** | Rota düzenleme: hatalı GPS noktalarını silme, baş/son budama, otomatik sıçrama temizliği, rota adını değiştirme (metrikler yeniden hesaplanır); donanım geri tuşu artık detay/izleyiciyi kapatıyor |
 | **1.8** | Keşfet sekmesi: herkese açık yayınlanan rotalar herkese görünür; paylaşılan bir rotayı tek dokunuşla kendi rotalarına ekleme; izleyicide geri butonu |
 | **1.7** | Bulut kütüphane senkronu: giriş yapıp bulut yedeklemeyi açınca rotaların tüm cihazlarında görünür (yükle + indir; yeni kayıtlar otomatik yedeklenir) |

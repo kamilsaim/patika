@@ -644,6 +644,14 @@ const Bulut=(()=>{
   }
   async function girisGoogle(){
     const c=istemci(); if(!c) throw new Error("bulut kapalı");
+    if(window.Capacitor){
+      // APK: WebView'da Google girişi engelli — sistem tarayıcısında aç, deep link ile dön
+      const redirectTo="com.kamilsaim.patika://auth-callback";
+      const {data,error}=await c.auth.signInWithOAuth({provider:"google",options:{redirectTo,skipBrowserRedirect:true}});
+      if(error) throw error;
+      if(data?.url){ const {Browser}=Capacitor.Plugins; await Browser.open({url:data.url,windowName:"_self"}); }
+      return data;
+    }
     return c.auth.signInWithOAuth({provider:"google",options:{redirectTo:location.href.split("#")[0]}});
   }
   async function cikis(){ const c=istemci(); if(c) await c.auth.signOut(); }
@@ -742,7 +750,34 @@ function poiSil(id){
 }
 
 /* =============== GPS izleme =============== */
-let watchId=null, wakeLock=null;
+let watchId=null, wakeLock=null, bgWatchId=null;
+// APK: foreground service ile arka plan GPS (ekran kapalıyken de nokta gelir).
+// Plugin yoksa (tarayıcı/PWA) hiç devreye girmez; kayıt watchPosition ile çalışır.
+function bgVar(){return !!(window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.BackgroundGeolocation);}
+async function bgBaslat(){
+  if(!bgVar())return;
+  try{
+    const {BackgroundGeolocation}=Capacitor.Plugins;
+    bgWatchId=await BackgroundGeolocation.addWatcher({
+      backgroundTitle:"Patika kaydediyor",
+      backgroundMessage:"Rotan arka planda kaydediliyor.",
+      requestPermissions:true, stale:false, distanceFilter:0
+    },(location,error)=>{
+      if(error){if(error.code==="NOT_AUTHORIZED")toast("Arka plan konum izni gerekli");return;}
+      if(!location)return;
+      const t=location.time||Date.now();
+      markerGuncelle(location.latitude,location.longitude,location.accuracy);
+      if(kayit.aktif&&!kayit.elleDurdu)
+        kayitNoktaEkle(location.latitude,location.longitude,location.altitude,t,location.accuracy);
+    });
+  }catch(e){bgWatchId=null;}
+}
+async function bgBitir(){
+  if(bgWatchId&&bgVar()){
+    try{await Capacitor.Plugins.BackgroundGeolocation.removeWatcher({id:bgWatchId});}catch(e){}
+  }
+  bgWatchId=null;
+}
 function gpsBaslat(){
   if(!navigator.geolocation){$("#gpsTxt").textContent="GPS desteklenmiyor";return;}
   watchId=navigator.geolocation.watchPosition(gpsNokta,gpsHata,
@@ -772,23 +807,34 @@ function kaydiBaslat(){
   $("#btnCanli").style.display=Bulut.yapilandirildi()?"block":"none";
   $("#btnCanli").classList.remove("yayinda");$("#btnCanli").textContent="📡 Canlı Paylaş";
   ekranKilidi(true);
+  bgBaslat(); // APK'da arka plan GPS; tarayıcıda no-op
   hudZ=setInterval(hudGuncelle,1000);
   toast(`${TIP[kayit.tip].ik} Kayıt başladı`);
 }
 function gpsNokta(pos){
   const c=pos.coords, t=pos.timestamp;
-  sonKonum=[c.latitude,c.longitude];
+  markerGuncelle(c.latitude,c.longitude,c.accuracy);
+  // APK arka plan izleyicisi aktifse kayıt noktalarını ondan al (çift saymayı önle)
+  if(bgWatchId)return;
+  if(!kayit.aktif||kayit.elleDurdu)return;
+  kayitNoktaEkle(c.latitude,c.longitude,c.altitude,t,c.accuracy);
+}
+// harita imleci + GPS chip'i güncelle (hem tarayıcı hem arka plan kaynağı çağırır)
+function markerGuncelle(lat,lng,accuracy){
+  sonKonum=[lat,lng];
   const chip=$("#gpsChip");
-  chip.className="chip"+(c.accuracy<=20?" iyi":"");
-  $("#gpsTxt").textContent=c.accuracy<=20?"GPS iyi":`GPS ±${Math.round(c.accuracy)} m`;
+  chip.className="chip"+(accuracy<=20?" iyi":"");
+  $("#gpsTxt").textContent=accuracy<=20?"GPS iyi":`GPS ±${Math.round(accuracy)} m`;
   if(!konumIsaret){
     konumIsaret=L.circleMarker(sonKonum,{radius:7,color:"#fff",weight:2,fillColor:"#E63A21",fillOpacity:1}).addTo(map);
-    dogrulukHalka=L.circle(sonKonum,{radius:c.accuracy,color:"#E63A21",weight:1,opacity:.3,fillOpacity:.08}).addTo(map);
+    dogrulukHalka=L.circle(sonKonum,{radius:accuracy,color:"#E63A21",weight:1,opacity:.3,fillOpacity:.08}).addTo(map);
     map.setView(sonKonum,16);
-  }else{konumIsaret.setLatLng(sonKonum);dogrulukHalka.setLatLng(sonKonum).setRadius(c.accuracy);}
-
-  if(!kayit.aktif||kayit.elleDurdu)return;
-  if(c.accuracy>35)return; // kötü nokta atla
+  }else{konumIsaret.setLatLng(sonKonum);dogrulukHalka.setLatLng(sonKonum).setRadius(accuracy);}
+}
+// tek bir kayıt noktasını değerlendir (gürültü filtresi + otomatik duraklama + metrikler)
+function kayitNoktaEkle(lat,lng,altitude,t,accuracy){
+  if(accuracy>35)return; // kötü nokta atla
+  const c={latitude:lat,longitude:lng,altitude:altitude,accuracy:accuracy};
 
   const n=kayit.noktalar, yeni=[c.latitude,c.longitude,c.altitude,t];
   if(n.length===0){n.push(yeni);kayit.sonT=t;return;}
@@ -845,7 +891,7 @@ function elleDuraklat(){
   if(!kayit.elleDurdu)kayit.durakSayac=0;
 }
 async function kaydiBitir(){
-  clearInterval(hudZ);ekranKilidi(false);
+  clearInterval(hudZ);ekranKilidi(false);bgBitir();
   const n=kayit.noktalar, mes=toplamMesafe(n);
   $("#hud").classList.remove("acik","kayitta","duraklama");
   $("#startPanel").style.display="flex";
@@ -1647,7 +1693,7 @@ window.addEventListener("pageshow",vpTazele);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden)vpTazele(); });
 
 /* =============== gezinme & başlangıç =============== */
-const SURUM="1.9.1";
+const SURUM="1.9.3";
 $("#nav").addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
   $$("#nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");
@@ -1825,6 +1871,26 @@ $("#btnPoi").onclick=()=>poiModalAc();
     if($("#ekran-ayarlar").classList.contains("active")) hesapCiz();
     if(u) senkronEt(true);
   });
+  // APK: Google girişi sistem tarayıcısından deep link ile döner — token'ı yakala
+  if(window.Capacitor){
+    const {App,Browser}=Capacitor.Plugins;
+    App.addListener("appUrlOpen",async({url})=>{
+      if(url&&url.includes("auth-callback")){
+        try{await Browser.close();}catch(e){}
+        const hash=url.split("#")[1];
+        if(hash){
+          const p=new URLSearchParams(hash);
+          const access_token=p.get("access_token"), refresh_token=p.get("refresh_token");
+          if(access_token&&refresh_token){
+            const c=Bulut.istemci();
+            const {error}=await c.auth.setSession({access_token,refresh_token});
+            if(error) toast("Giriş tamamlanamadı: "+error.message);
+            else toast("Giriş başarılı — hoş geldin!");
+          }
+        }
+      }
+    });
+  }
   // uygulama içi güncelleme kontrolü
   guncellemeKontrol();
   // inline PWA manifest (base64 data URL)
