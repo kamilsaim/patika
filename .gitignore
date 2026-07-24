@@ -1,0 +1,10 @@
+# Depoya yalnızca yayın dosyaları gider; gerisi (CLAUDE.md, CHANGELOG, ROADMAP,
+# *.sql, ekran görüntüleri, .claude vb.) yerelde kalır.
+/*
+!index.html
+!README.md
+!splash.png
+!logo.png
+!icon-512.png
+!icon-1024.png
+!.gitignore
