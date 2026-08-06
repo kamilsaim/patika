@@ -2,6 +2,7 @@
 # *.sql, ekran görüntüleri, .claude vb.) yerelde kalır.
 /*
 !index.html
+!gizlilik.html
 !README.md
 !splash.png
 !logo.png

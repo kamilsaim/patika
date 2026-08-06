@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gizlilik Politikası · Patika</title>
+<style>
+  :root{--bg:#101613;--surface:#1A231E;--line:#2A362F;--text:#EDF2EA;--muted:#8FA096;--blaze:#E63A21;--blaze-soft:#FF6A4F}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);line-height:1.65;
+       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+  header{padding:30px 20px 26px;text-align:center;border-bottom:1px solid var(--line)}
+  .serit{height:8px;background:repeating-linear-gradient(90deg,var(--blaze) 0 22px,#EDF2EA 22px 44px)}
+  header h1{margin:14px 0 0;font-size:22px;letter-spacing:.5px}
+  header p{margin:8px 0 0;font-size:13px;color:var(--muted)}
+  main{max-width:760px;margin:0 auto;padding:20px}
+  .kart{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:14px}
+  h2{color:var(--blaze-soft);font-size:16px;margin:0 0 10px}
+  p,li{font-size:14.5px;color:#C9D4CB}
+  ul{padding-left:20px;margin:8px 0}
+  a{color:var(--blaze-soft);font-weight:600}
+  b{color:var(--text)}
+  .vurgu{background:#241A17;border-left:4px solid var(--blaze);padding:12px 14px;border-radius:8px;margin-top:12px}
+  footer{text-align:center;font-size:12.5px;color:var(--muted);padding:24px 20px 34px}
+</style>
+</head>
+<body>
+<div class="serit"></div>
+<header>
+  <h1>PATİKA — Gizlilik Politikası</h1>
+  <p>Son güncelleme: 6 Ağustos 2026</p>
+</header>
+<main>
+
+  <div class="kart">
+    <p>Patika; bisiklet, yürüyüş ve koşu rotalarını kaydetmeni, istersen bulutta yedeklemeni ve paylaşmanı sağlayan bir uygulamadır. Bu politika, uygulamayı kullanırken hangi bilgilerin toplandığını, nasıl kullanıldığını ve haklarını açıklar. Geliştirici: <b>Kamil Saim</b> · İletişim: <a href="mailto:saimkamil@gmail.com">saimkamil@gmail.com</a></p>
+  </div>
+
+  <div class="kart">
+    <h2>1. Hesap Olmadan Kullanım</h2>
+    <p>Patika'yı <b>hiç hesap açmadan</b> kullanabilirsin. Giriş yapmadığın sürece hiçbir veri cihazından dışarı çıkmaz: kaydettiğin rotalar, işaretlediğin yerler, istatistiklerin ve rozetlerin yalnızca telefonunun kendi yerel deposunda (IndexedDB) durur. Bulut özellikleri tamamen isteğe bağlıdır.</p>
+  </div>
+
+  <div class="kart">
+    <h2>2. Konum Bilgisi</h2>
+    <p>Uygulamanın temel işlevi rota kaydı olduğu için konum izni ister. Konum verisi şöyle kullanılır:</p>
+    <ul>
+      <li><b>Kayıt sırasında:</b> Haritada konumunu göstermek ve rotanı çizmek için GPS noktaları (enlem, boylam, yükseklik, zaman) toplanır. Bu noktalar cihazında saklanır.</li>
+      <li><b>Ekran kapalıyken (arka planda):</b> Kaydı başlattığında, sen kaydı bitirene kadar konum <b>arka planda da</b> alınır — telefonu cebine koyup ekranı kapattığında rotanın kopmaması için gereklidir. Bu sırada bildirim çubuğunda kaydın sürdüğünü belirten kalıcı bir bildirim görürsün. Kaydı bitirdiğinde arka plan konum takibi <b>tamamen durur</b>.</li>
+      <li>Konum verisi <b>reklam amacıyla kullanılmaz</b>, üçüncü taraflara satılmaz veya pazarlama için paylaşılmaz.</li>
+    </ul>
+    <div class="vurgu">Konum izni vermeden de uygulamayı açabilir, kayıtlı rotalarını ve istatistiklerini görebilirsin; yalnızca yeni kayıt alma özelliği çalışmaz.</div>
+  </div>
+
+  <div class="kart">
+    <h2>3. Hesap Açarsan Toplananlar</h2>
+    <ul>
+      <li><b>Kimlik bilgisi:</b> E-posta ile bağlantı (magic link) veya Google ile giriş yaptığında e-posta adresin alınır. Şifre saklanmaz.</li>
+      <li><b>Yedeklenen rotalar:</b> Bulut yedeklemeyi açarsan rotaların (GPS noktaları, mesafe, süre, tırmanış gibi metrikler ve verdiğin rota adı) hesabına bağlı olarak sunucuda saklanır.</li>
+      <li><b>Yayınladığın rotalar:</b> Bir rotayı bağlantıyla paylaşırsan veya Keşfet'e gönderirsen, o rota bağlantıya sahip herkes ya da tüm kullanıcılar tarafından görülebilir hale gelir. Bu tamamen senin açık tercihindir.</li>
+      <li><b>Canlı takip:</b> "Canlı Paylaş" özelliğini kullanırsan, oturum süresince konumun yaklaşık 10 saniyede bir sunucuya gönderilir ve paylaştığın bağlantıya sahip kişiler tarafından görülebilir. Kaydı bitirdiğinde oturum kapanır.</li>
+    </ul>
+  </div>
+
+  <div class="kart">
+    <h2>4. Gizlilik Korumaları</h2>
+    <ul>
+      <li>Bir rotayı yayınladığında, başkalarına gösterilen haritada rotanın <b>başlangıç ve bitiş uçları kırpılır</b> — ev adresin gibi hassas noktaların ifşa olmaması içindir.</li>
+      <li>Yayınlanmayan rotaların (<b>özel</b>) senden başka kimse tarafından görülemez; sunucuda satır düzeyinde güvenlik (RLS) kurallarıyla korunur.</li>
+      <li>Yayınladığın bir rotayı istediğin an yayından kaldırabilirsin.</li>
+    </ul>
+  </div>
+
+  <div class="kart">
+    <h2>5. Veriler Nerede Saklanır</h2>
+    <p>Bulut verileri, güvenli bir bulut altyapısı olan <b>Supabase</b> üzerinde saklanır ve tüm veri aktarımı şifreli bağlantı (HTTPS) üzerinden yapılır. Harita görüntüleri OpenStreetMap ve Esri gibi harita sağlayıcılarından çekilir; bu sağlayıcılar teknik olarak isteğin geldiği IP adresini görebilir, ancak Patika onlara kimliğini veya rota verini göndermez.</p>
+  </div>
+
+  <div class="kart">
+    <h2>6. Hesabını ve Verilerini Silme</h2>
+    <p>Verilerin üzerinde tam kontrol sende. Hesabını iki yolla silebilirsin:</p>
+    <ul>
+      <li><b>Uygulama içinden:</b> <b>Ayarlar → Hesap → 🗑️ Hesabımı Sil</b> yolunu izle. İki aşamalı onaydan sonra buluttaki tüm rotaların, işaretlerin ve canlı takip kayıtların kalıcı olarak silinir ve hesabın kapatılır. Bu işlem geri alınamaz.</li>
+      <li><b>Uygulamaya erişimin yoksa:</b> <a href="mailto:saimkamil@gmail.com?subject=Patika%20Hesap%20Silme%20Talebi">saimkamil@gmail.com</a> adresine, giriş yaptığın e-posta ile bir silme talebi gönder; hesabın ve buluttaki verilerin silinir.</li>
+    </ul>
+    <div class="vurgu">Hesap silme <b>buluttaki</b> verini siler. Telefonundaki yerel rota kayıtların, uygulamayı hesapsız kullanmaya devam edebilesin diye cihazında kalır — onları da silmek istersen <b>Ayarlar → Tüm veriyi sil</b> seçeneğini kullanabilir ya da uygulamayı kaldırabilirsin.</div>
+    <p style="margin-top:12px">Not: Bu hesabın (aynı e-posta) geliştiricinin başka bir uygulamasında da verisi varsa, o uygulamadaki verilerinin kaybolmaması için Patika verilerin silinir ancak giriş hesabın açık kalır. Tümüyle silinmesini istersen yukarıdaki e-posta adresine yazman yeterlidir.</p>
+  </div>
+
+  <div class="kart">
+    <h2>7. Çocukların Gizliliği</h2>
+    <p>Patika 13 yaşın altındaki çocuklara yönelik değildir ve bilerek onlardan veri toplamaz.</p>
+  </div>
+
+  <div class="kart">
+    <h2>8. Değişiklikler ve İletişim</h2>
+    <p>Bu politika zaman zaman güncellenebilir; güncel sürüm her zaman bu sayfada yayınlanır. Soruların, talepların veya gizlilikle ilgili endişelerin için: <a href="mailto:saimkamil@gmail.com">saimkamil@gmail.com</a></p>
+  </div>
+
+</main>
+<footer>Patika · Yolunu kayıt et, anını yaşa</footer>
+<div class="serit"></div>
+</body>
+</html>

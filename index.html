@@ -437,6 +437,11 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--blaze);outline-o
             <div style="flex:1"><div class="ana">Çıkış yap</div></div>
             <div class="ok">›</div>
           </div>
+          <div class="ayar-satir bagli tehlike" id="ayarHesapSil">
+            <div style="flex:1"><div class="ana">🗑️ Hesabımı Sil</div>
+              <div class="alt">Buluttaki tüm rotaların silinir · geri alınamaz</div></div>
+            <div class="ok">›</div>
+          </div>
         </div>
       </div>
 
@@ -480,6 +485,9 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--blaze);outline-o
       <div class="ayar-grup">
         <h3>Geliştirici</h3>
         <div class="ayar-satir"><div class="ana">Kamil · Kayseri</div></div>
+        <div class="ayar-satir bagli" id="ayarGizlilik">
+          <div class="ana">Gizlilik Politikası</div><div class="ok">›</div>
+        </div>
         <div class="ayar-satir bagli" onclick="openLink&&openLink('https://github.com/kamilsaim')||window.open('https://github.com/kamilsaim','_blank')">
           <div class="ana">GitHub · @kamilsaim</div><div class="ok">›</div>
         </div>
@@ -917,6 +925,12 @@ function onayModalAc(baslik,mesaj,onayEtiket,onayFn){
       <button class="btn btn-blaze" id="mEvet">${onayEtiket}</button></div>`);
   $("#mHayir").onclick=modalKapat;
   $("#mEvet").onclick=()=>{modalKapat();onayFn();};
+}
+function bilgiModalAc(baslik,mesaj){
+  modalAc(`<h2>${baslik}</h2>
+    <p style="color:var(--muted);font-size:13px;line-height:1.5;margin:0 0 4px">${mesaj}</p>
+    <div class="modal-btns"><button class="btn btn-blaze" id="mTamam">Tamam</button></div>`);
+  $("#mTamam").onclick=modalKapat;
 }
 
 /* kayıt sonu: isim ver & kaydet */
@@ -1693,7 +1707,7 @@ window.addEventListener("pageshow",vpTazele);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden)vpTazele(); });
 
 /* =============== gezinme & başlangıç =============== */
-const SURUM="1.9.3";
+const SURUM="1.9.4";
 $("#nav").addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
   $$("#nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");
@@ -1763,6 +1777,51 @@ $("#ayarGirisAc").onclick=girisModalAc;
 $("#ayarCikisYap").onclick=async()=>{
   await Bulut.cikis();toast("Çıkış yapıldı");hesapCiz();
 };
+/* gizlilik politikası — APK'da sistem tarayıcısında aç */
+$("#ayarGizlilik").onclick=async()=>{
+  const u=new URL("gizlilik.html",location.href).href;
+  if(window.Capacitor&&Capacitor.Plugins?.Browser){
+    try{await Capacitor.Plugins.Browser.open({url:u});return;}catch(e){}
+  }
+  window.open(u,"_blank");
+};
+/* hesap silme (Play Store zorunluluğu) — iki aşamalı onay + ptk-delete-account */
+$("#ayarHesapSil").onclick=()=>{
+  onayModalAc("Hesabımı Sil",
+    "Buluttaki tüm rotaların, işaretlerin ve canlı takip kayıtların kalıcı olarak silinecek. "+
+    "Telefonundaki yerel kayıtların kalır — uygulamayı hesapsız kullanmaya devam edebilirsin.",
+    "Devam et",()=>{
+      onayModalAc("Emin misin?",
+        "Bu işlem <b>GERİ ALINAMAZ</b>. Buluttaki veriler ve hesabın tamamen silinecek.",
+        "Evet, sil",hesapSil);
+    });
+};
+async function hesapSil(){
+  const c=Bulut.istemci();
+  if(!c){toast("Bulut kullanılamıyor");return;}
+  toast("Hesap siliniyor…");
+  try{
+    const {data,error}=await c.functions.invoke("ptk-delete-account");
+    if(error) throw error;
+    if(data&&data.error) throw new Error(data.error);
+    /* yerel kayıtlardaki bulut bağlarını temizle */
+    try{
+      const akt=await dbTum("aktiviteler");
+      for(const a of akt){
+        if(a.bulutId||a.gizlilik){delete a.bulutId;delete a.gizlilik;await dbYaz("aktiviteler",a);}
+      }
+    }catch(e){}
+    localStorage.removeItem("patikaSync");
+    await Bulut.cikis();
+    hesapCiz();
+    if(data&&data.account_deleted===false)
+      bilgiModalAc("Patika verilerin silindi",
+        "Buluttaki tüm Patika verilerin silindi. Bu e-posta başka bir uygulamada da kullanıldığı için giriş hesabın açık bırakıldı; tümüyle silinmesini istersen saimkamil@gmail.com adresine yazabilirsin.");
+    else toast("✔ Hesabın ve bulut verilerin silindi");
+  }catch(err){
+    toast("Silinemedi: "+(err.message||"hata"));
+  }
+}
 $("#ayarSyncToggle").onclick=()=>{
   const acik=$("#togSync").classList.toggle("acik");
   localStorage.setItem("patikaSync",acik?"1":"0");
