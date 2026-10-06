@@ -606,6 +606,7 @@ function mesafe(a,b){const R=6371000,r=x=>x*Math.PI/180;
   const h=Math.sin(dLat/2)**2+Math.cos(r(a[0]))*Math.cos(r(b[0]))*Math.sin(dLon/2)**2;
   return 2*R*Math.asin(Math.sqrt(h));}
 let toastZ;
+const esc=v=>String(v??"").replace(/[<>&"']/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;","'":"&#39;"}[c]));
 function toast(msg,rozet){const t=$("#toast");t.textContent=msg;t.className=rozet?"acik rozet":"acik";
   clearTimeout(toastZ);toastZ=setTimeout(()=>t.className="",2600);}
 
@@ -691,6 +692,11 @@ const Bulut=(()=>{
     const {error}=await c.from(tablo).delete().eq("id",id);
     if(error) throw error;
   }
+  async function rpc(fn,args){
+    const c=istemci(); if(!c) throw new Error("bulut kapalı");
+    const {data,error}=await c.rpc(fn,args||{});
+    if(error) throw error; return data;
+  }
   // güncel yayın sürümünü ptk_meta'dan canlı (cache'siz) okur
   async function guncelSurum(){
     const c=istemci(); if(!c) return null;
@@ -700,7 +706,7 @@ const Bulut=(()=>{
       return data?.deger||null;
     }catch(e){ return null; }
   }
-  return {yapilandirildi,istemci,kullanici,girisMagic,girisGoogle,cikis,oturumDinle,ekle,getir,guncelle,sil,guncelSurum};
+  return {yapilandirildi,istemci,kullanici,girisMagic,girisGoogle,cikis,oturumDinle,ekle,getir,guncelle,sil,rpc,guncelSurum};
 })();
 
 /* =============== harita =============== */
@@ -748,7 +754,7 @@ async function poileriCiz(){
   poiKatman.clearLayers();
   (await dbTum("pois")).forEach(p=>{
     L.marker([p.lat,p.lng],{icon:poiIkon(p.tip)}).addTo(poiKatman)
-     .bindPopup(`<b>${POI_TIP[p.tip].ik} ${POI_TIP[p.tip].ad}</b>${p.not?p.not:""}<br>
+     .bindPopup(`<b>${POI_TIP[p.tip].ik} ${POI_TIP[p.tip].ad}</b>${p.not?"<br>"+esc(p.not):""}<br>
        <span class="pk-sil" onclick="poiSil('${p.id}')">Sil</span>`);});
 }
 function poiSil(id){
@@ -771,7 +777,10 @@ async function bgBaslat(){
       backgroundMessage:"Rotan arka planda kaydediliyor.",
       requestPermissions:true, stale:false, distanceFilter:0
     },(location,error)=>{
-      if(error){if(error.code==="NOT_AUTHORIZED")toast("Arka plan konum izni gerekli");return;}
+      if(error){
+        // arka plan kaynağı çalışmıyor → tarayıcı watchPosition kayıt beslemeye devam etsin
+        toast(error.code==="NOT_AUTHORIZED"?"Arka plan konum izni yok — ekran açık kayıt":"Arka plan GPS kullanılamıyor");
+        bgBitir();return;}
       if(!location)return;
       const t=location.time||Date.now();
       markerGuncelle(location.latitude,location.longitude,location.accuracy);
@@ -802,13 +811,13 @@ document.addEventListener("visibilitychange",()=>{if(kayit.aktif&&document.visib
 
 /* =============== kayıt motoru =============== */
 const kayit={aktif:false,tip:"bisiklet",noktalar:[],baslangic:0,hareketSn:0,
-  sonT:0,duraklama:false,elleDurdu:false,tirmanis:0,sonEle:null,maxHiz:0,durakSayac:0};
+  sonT:0,duraklama:false,elleDurdu:false,tirmanis:0,sonEle:null,maxHiz:0,durakSayac:0,sonHam:null};
 let hudZ=null;
 
 function kaydiBaslat(){
   if(!sonKonum){toast("GPS bekleniyor, birazdan tekrar dene");return;}
   Object.assign(kayit,{aktif:true,noktalar:[],baslangic:Date.now(),hareketSn:0,
-    sonT:Date.now(),duraklama:false,elleDurdu:false,tirmanis:0,sonEle:null,maxHiz:0,durakSayac:0});
+    sonT:Date.now(),duraklama:false,elleDurdu:false,tirmanis:0,sonEle:null,maxHiz:0,durakSayac:0,sonHam:null});
   izKatman.setLatLngs([]);
   $("#startPanel").style.display="none";
   const h=$("#hud");h.classList.add("acik","kayitta");h.classList.remove("duraklama");
@@ -845,12 +854,17 @@ function kayitNoktaEkle(lat,lng,altitude,t,accuracy){
   const c={latitude:lat,longitude:lng,altitude:altitude,accuracy:accuracy};
 
   const n=kayit.noktalar, yeni=[c.latitude,c.longitude,c.altitude,t];
+  // hız ve süre, kaydedilen son noktaya değil bir önceki HAM noktaya göre ölçülür:
+  // aksi halde moladan sonra hız yapay düşük kalıyor (devam geç algılanıyor,
+  // arada düz çizgi) ve mola süresi hareket süresine ekleniyordu
+  const ham=kayit.sonHam;
+  if(ham&&t<=ham[3])return;
+  kayit.sonHam=yeni;
   if(n.length===0){n.push(yeni);kayit.sonT=t;return;}
+  if(!ham)return; // elle duraklatmadan dönüş: referansı tazele, araya süre katma
 
-  const onceki=n[n.length-1];
-  const d=mesafe(onceki,yeni), dt=(t-onceki[3])/1000;
-  if(dt<=0)return;
-  const hiz=d/dt; // m/s
+  const dt=(t-ham[3])/1000;
+  const hiz=mesafe(ham,yeni)/dt; // m/s
 
   // otomatik duraklama: aktivite tipine göre eşik + ayarlarda kapatılabilir
   const otoAcik=localStorage.getItem("patikaOtoDur")!=="0";
@@ -867,12 +881,12 @@ function kayitNoktaEkle(lat,lng,altitude,t,accuracy){
   }
 
   if(kayit.duraklama){kayit.sonT=t;return;}
-  if(d<2)return; // GPS titremesi
+  kayit.hareketSn+=dt;
+  if(mesafe(n[n.length-1],yeni)<2)return; // GPS titremesi
 
   n.push(yeni);
   izKatman.addLatLng([yeni[0],yeni[1]]);
   map.panTo(sonKonum,{animate:true});
-  kayit.hareketSn+=dt;
   if(hiz*3.6>kayit.maxHiz&&hiz*3.6<90)kayit.maxHiz=hiz*3.6;
   if(canliDurum&&canliDurum.aktif)canliNoktaKuyruk(yeni,hiz*3.6);
 
@@ -896,7 +910,7 @@ function elleDuraklat(){
   kayit.elleDurdu=!kayit.elleDurdu;
   $("#btnPauseToggle").textContent=kayit.elleDurdu?"Devam Et":"Duraklat";
   $("#hud").classList.toggle("duraklama",kayit.elleDurdu);
-  if(!kayit.elleDurdu)kayit.durakSayac=0;
+  if(!kayit.elleDurdu){kayit.durakSayac=0;kayit.sonHam=null;}
 }
 async function kaydiBitir(){
   clearInterval(hudZ);ekranKilidi(false);bgBitir();
@@ -989,7 +1003,7 @@ async function rotaListeCiz(){
   if(!akts.length){liste.innerHTML=`<div class="bos"><b>Henüz kayıtlı rota yok.</b><br>
     Kayıt sekmesinden ilk aktiviteni başlat ya da sağ üstten GPX dosyası içe aktar.</div>`;return;}
   liste.innerHTML=akts.map(a=>`<div class="kart" onclick="detayAc('${a.id}')">
-    <h3>${TIP[a.tip].ik} ${a.ad}</h3>
+    <h3>${(TIP[a.tip]||TIP.bisiklet).ik} ${esc(a.ad)}</h3>
     <div class="meta">${fmtTarih(a.tarih)}</div>
     <div class="satir">
       <span>${fmtKm(a.mesafe)}<small>km</small></span>
@@ -1028,7 +1042,10 @@ $("#btnSil").onclick=()=>{
   const id=aktifDetay.id;
   onayModalAc("Rotayı sil","Bu rota kalıcı olarak silinecek.","Sil",async()=>{
     await dbSil("aktiviteler",id);
-    if(aktifDetay && aktifDetay.bulutId){try{await Bulut.sil("ptk_rotalar",aktifDetay.bulutId);}catch(e){}}
+    if(aktifDetay && aktifDetay.bulutId){
+      const bid=aktifDetay.bulutId;
+      try{await Bulut.sil("ptk_rotalar",bid);}catch(e){await silinenEkle(bid);}
+    }
     $("#detay").classList.remove("acik");
     rotaListeCiz();istatCiz();toast("Rota silindi");
   });
@@ -1229,7 +1246,7 @@ async function yayinUygula(a,u,gizlilik){
     yayinModalAc(); // durumu ve link kutusunu tazele
   }catch(err){
     console.error("[Patika] yayın hatası:",err);
-    bilgiModal("Yayınlanamadı",(err.message||err.details||err.hint||"Bilinmeyen hata")+(err.code?("\n\nkod: "+err.code):""));
+    bilgiModal("Yayınlanamadı",esc(err.message||err.details||err.hint||"Bilinmeyen hata")+(err.code?("\n\nkod: "+esc(err.code)):""));
   }
 }
 function yayindanKaldir(a){
@@ -1297,7 +1314,7 @@ $("#btnCanli").onclick=()=>{
 };
 
 /* =============== izleyici sayfaları (?r= / ?canli=) =============== */
-let izMap=null, izKanal=null;
+let izMap=null;
 function izMapKur(){
   if(izMap)return;
   izMap=L.map("izMap",{zoomControl:false});
@@ -1305,13 +1322,6 @@ function izMapKur(){
   izMap._iz=L.polyline([],{color:"#E63A21",weight:4}).addTo(izMap);
 }
 const izKutu=(v,l)=>`<div class="kutu"><div class="hud-num">${v}</div><div class="hud-lbl">${l}</div></div>`;
-function uclariBudama(ll,metre){ // gizlilik: başlangıç/bitiş yakınını kırp
-  if(ll.length<6)return ll;
-  const kirp=arr=>{let toplam=0,i=1;while(i<arr.length&&toplam<metre){toplam+=mesafe(arr[i-1],arr[i]);i++;}return i-1;};
-  const bas=kirp(ll), son=kirp([...ll].reverse());
-  const kesit=ll.slice(bas, ll.length-son);
-  return kesit.length>=2?kesit:ll;
-}
 let izAktifRota=null, izStandalone=false, izGecmis=false; // izStandalone: link ile dışarıdan mı açıldı
 async function izleyiciRotaAc(id){
   const acikMi=$("#izleyici").classList.contains("acik");
@@ -1321,14 +1331,12 @@ async function izleyiciRotaAc(id){
   if(!acikMi&&!izStandalone){history.pushState({patika:"iz"},"");izGecmis=true;} // geri tuşu izleyiciyi kapatsın
   izMapKur();setTimeout(()=>izMap.invalidateSize(),60);
   try{
-    const r=(await Bulut.getir("ptk_rotalar",{id}))[0];
+    // RPC: id bilmeden erişilemez; başkasının rotasında ilk/son 200 m sunucuda kırpılı gelir
+    const r=await Bulut.rpc("ptk_rota_getir",{p_id:id});
     if(!r){$("#izBaslik").textContent="Rota bulunamadı";return;}
     izAktifRota=r;
-    const u=await Bulut.kullanici();
-    const sahip=u&&u.id===r.kullanici_id;
-    if(!sahip)$("#izEkle").style.display="block"; // başkasının rotası → kendine ekleyebilir
-    let ll=(r.noktalar||[]).map(p=>[p[0],p[1]]);
-    if(!sahip)ll=uclariBudama(ll,200);
+    if(!r.sahip)$("#izEkle").style.display="block"; // başkasının rotası → kendine ekleyebilir
+    const ll=(r.noktalar||[]).map(p=>[p[0],p[1]]);
     izMap._iz.setLatLngs(ll);
     if(ll.length)setTimeout(()=>izMap.fitBounds(L.latLngBounds(ll),{padding:[30,30]}),90);
     $("#izBaslik").textContent=(TIP[r.tip]?TIP[r.tip].ik+" ":"")+r.ad;
@@ -1351,37 +1359,37 @@ async function izleyiciCanliAc(kod){
   $("#izAc").style.display=izStandalone?"":"none";
   izMapKur();setTimeout(()=>izMap.invalidateSize(),60);
   $("#izBaslik").textContent="Canlı takip";
-  let oturum;
-  try{oturum=(await Bulut.getir("ptk_canli",{paylasim_kodu:kod}))[0];}catch(e){}
-  if(!oturum||!oturum.aktif){$("#izleyici").classList.remove("canli");$("#izBaslik").textContent="Yayın bulunamadı veya bitti";$("#izIstat").innerHTML="";return;}
-  let ll=[];
-  try{
-    const nk=(await Bulut.getir("ptk_canli_nokta",{oturum_id:oturum.id}))||[];
-    nk.sort((a,b)=>new Date(a.t)-new Date(b.t));
-    ll=nk.map(p=>[p.lat,p.lng]);
-  }catch(e){}
-  izMap._iz.setLatLngs(ll);
-  let konumM=null;
+  izMap._iz.setLatLngs([]);
+  let konumM=null, sonT=null;
   const konumGoster=(lat,lng)=>{
     if(!konumM)konumM=L.circleMarker([lat,lng],{radius:8,color:"#fff",weight:2,fillColor:"#E63A21",fillOpacity:1}).addTo(izMap);
     else konumM.setLatLng([lat,lng]);
     izMap.setView([lat,lng],izMap.getZoom()<13?15:izMap.getZoom());
   };
-  if(ll.length)konumGoster(ll[ll.length-1][0],ll[ll.length-1][1]);
-  izCanliIstat(oturum.son_hiz);
-  const c=Bulut.istemci();
-  if(c){
-    izKanal=c.channel("izle-"+kod)
-      .on("postgres_changes",{event:"INSERT",schema:"public",table:"ptk_canli_nokta",filter:"oturum_id=eq."+oturum.id},
-        payload=>{const p=payload.new;izMap._iz.addLatLng([p.lat,p.lng]);konumGoster(p.lat,p.lng);izCanliIstat(p.hiz);})
-      .on("postgres_changes",{event:"UPDATE",schema:"public",table:"ptk_canli",filter:"id=eq."+oturum.id},
-        payload=>{if(payload.new.aktif===false){$("#izleyici").classList.remove("canli");toast("Yayın sona erdi");}})
-      .subscribe();
-  }
+  // RPC: kod bilmeden erişilemez; 2 saattir konum gelmeyen oturum "bitti" sayılır
+  const cek=async ilk=>{
+    let o=null;
+    try{o=await Bulut.rpc("ptk_canli_getir",{p_kod:kod,p_sonra:sonT});}catch(e){return;} // ağ hatası: sonraki turda dene
+    if(!o||!o.aktif){
+      izleyiciYoklamaDur();
+      $("#izleyici").classList.remove("canli");
+      if(ilk){$("#izBaslik").textContent="Yayın bulunamadı veya bitti";$("#izIstat").innerHTML="";}
+      else toast("Yayın sona erdi");
+      return;
+    }
+    const nk=o.noktalar||[];
+    nk.forEach(p=>izMap._iz.addLatLng([p[0],p[1]]));
+    if(nk.length){const s=nk[nk.length-1];sonT=s[3];konumGoster(s[0],s[1]);}
+    izCanliIstat(nk.length?nk[nk.length-1][2]:o.son_hiz);
+  };
+  await cek(true);
+  if($("#izleyici").classList.contains("canli"))izYoklama=setInterval(()=>cek(false),10000);
 }
+let izYoklama=null;
+function izleyiciYoklamaDur(){if(izYoklama){clearInterval(izYoklama);izYoklama=null;}}
 
 function izleyiciKapatIc(){
-  if(izKanal){try{Bulut.istemci().removeChannel(izKanal);}catch(e){}izKanal=null;}
+  izleyiciYoklamaDur();
   $("#izleyici").classList.remove("acik","canli");
 }
 $("#izKapat").onclick=()=>{
@@ -1412,13 +1420,10 @@ async function kesfetCiz(){
   if(!Bulut.yapilandirildi()){liste.innerHTML=`<div class="bos"><b>Bulut kapalı.</b></div>`;return;}
   liste.innerHTML=`<div class="bos">Yükleniyor…</div>`;
   try{
-    let rotalar=await Bulut.getir("ptk_rotalar",{gizlilik:"herkese"});
-    rotalar.sort((a,b)=>new Date(b.tarih)-new Date(a.tarih));
-    rotalar=rotalar.slice(0,60);
+    const rotalar=(await Bulut.rpc("ptk_kesfet",{p_limit:60}))||[];
     if(!rotalar.length){liste.innerHTML=`<div class="bos"><b>Keşfette henüz rota yok.</b><br>
       Bir rotanı "herkese açık" yayınla, ilk sen ol.</div>`;return;}
-    const esc=s=>(s||"").replace(/[<>&]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;"}[c]));
-    liste.innerHTML=rotalar.map(r=>`<div class="kart" onclick="kesfetAc('${r.id}')">
+    liste.innerHTML=rotalar.map(r=>`<div class="kart" onclick="kesfetAc('${esc(r.id)}')">
       <h3>${TIP[r.tip]?TIP[r.tip].ik:"📍"} ${esc(r.ad)}</h3>
       <div class="meta">${new Date(r.tarih).toLocaleDateString("tr-TR")}</div>
       <div class="satir">
@@ -1433,6 +1438,9 @@ function kesfetAc(id){ izleyiciRotaAc(id); }
 
 /* =============== bulut kütüphane senkronu =============== */
 let syncCalisiyor=false;
+// çevrimdışıyken silinen rotaların bulut id'leri — eşitlemede silinir, geri indirilmez
+async function silinenler(){return ((await dbAl("meta","silinenBulut"))||{idler:[]}).idler;}
+async function silinenEkle(id){const l=await silinenler();if(!l.includes(id)){l.push(id);await dbYaz("meta",{k:"silinenBulut",idler:l});}}
 const syncAcik=()=>localStorage.getItem("patikaSync")==="1";
 async function senkronEt(sessiz){
   if(syncCalisiyor)return;
@@ -1441,19 +1449,29 @@ async function senkronEt(sessiz){
   syncCalisiyor=true;
   if(!sessiz)toast("Eşitleniyor…");
   try{
+    // 0) SİL: çevrimdışıyken silinmiş rotaları buluttan da sil
+    const bekleyen=await silinenler(), kalan=[];
+    for(const bid of bekleyen){try{await Bulut.sil("ptk_rotalar",bid);}catch(e){kalan.push(bid);}}
+    if(bekleyen.length)await dbYaz("meta",{k:"silinenBulut",idler:kalan});
     // 1) YÜKLE: bulutId'si olmayan yerel rotaları 'ozel' olarak buluta gönder
     for(const a of await dbTum("aktiviteler")){
       if(a.bulutId||!a.noktalar||a.noktalar.length<2)continue;
       try{
         const r=await Bulut.ekle("ptk_rotalar",rotaPayload(a,u,a.gizlilik||"ozel"));
         a.bulutId=r[0].id; a.gizlilik=a.gizlilik||"ozel"; await dbYaz("aktiviteler",a);
-      }catch(e){ console.error("[Patika] sync yükleme:",e); }
+      }catch(e){
+        if(e&&e.code==="23505"){ // bu yerel_id başka bir eşitlemede zaten yüklenmiş → bağla
+          try{const v=(await Bulut.getir("ptk_rotalar",{kullanici_id:u.id,yerel_id:a.id}))[0];
+            if(v){a.bulutId=v.id;a.gizlilik=v.gizlilik;await dbYaz("aktiviteler",a);}}catch(_){}
+        }else console.error("[Patika] sync yükleme:",e);
+      }
     }
     // 2) İNDİR: bulutta olup yerelde olmayan rotaları indir
     const bulut=await Bulut.getir("ptk_rotalar",{kullanici_id:u.id});
     const yerel=await dbTum("aktiviteler");
     const yerelIdler=new Set(yerel.map(a=>a.id));
     const bulutIdler=new Set(yerel.map(a=>a.bulutId).filter(Boolean));
+    kalan.forEach(id=>bulutIdler.add(id)); // silinmeyi bekleyenleri geri indirme
     let indi=0;
     for(const r of bulut){
       if((r.yerel_id&&yerelIdler.has(r.yerel_id))||bulutIdler.has(r.id))continue;
@@ -1523,28 +1541,39 @@ $("#gpxFile").addEventListener("change",async e=>{
   const f=e.target.files[0];if(!f)return;
   try{
     const xml=new DOMParser().parseFromString(await f.text(),"text/xml");
-    const trkpts=[...xml.querySelectorAll("trkpt")];
-    if(trkpts.length<2)throw 0;
-    const noktalar=trkpts.map(p=>{
+    const simdi=Date.now();
+    const noktalar=[...xml.querySelectorAll("trkpt")].map(p=>{
       const ele=p.querySelector("ele"),t=p.querySelector("time");
+      const e=ele?parseFloat(ele.textContent):NaN, z=t?Date.parse(t.textContent):NaN;
       return [parseFloat(p.getAttribute("lat")),parseFloat(p.getAttribute("lon")),
-        ele?parseFloat(ele.textContent):null,t?Date.parse(t.textContent):Date.now()];});
-    let mes=0,tir=0,sonE=null;
-    for(let i=1;i<noktalar.length;i++)mes+=mesafe(noktalar[i-1],noktalar[i]);
-    noktalar.forEach(p=>{if(p[2]!=null){if(sonE!=null&&p[2]-sonE>=2)tir+=p[2]-sonE;
-      if(sonE==null||Math.abs(p[2]-sonE)>=2)sonE=p[2];}});
-    const sn=Math.max(1,Math.round((noktalar[noktalar.length-1][3]-noktalar[0][3])/1000));
-    const ad=xml.querySelector("trk name, metadata name")?.textContent?.trim()||f.name.replace(/\.gpx$/i,"");
-    const akt={id:"a"+Date.now(),ad,tip:"bisiklet",tarih:noktalar[0][3],noktalar,mesafe:mes,
-      hareketSn:sn,gecenSn:sn,tirmanis:Math.round(tir),
-      maxHiz:0,ortHiz:Math.round(mes/sn*3.6*10)/10};
+        isFinite(e)?e:null,isFinite(z)?z:null];})
+      .filter(p=>isFinite(p[0])&&isFinite(p[1]));
+    if(noktalar.length<2)throw 0;
+    const zamanli=noktalar.every(p=>p[3]!=null)&&noktalar[noktalar.length-1][3]>noktalar[0][3];
+    let met;
+    if(zamanli) met=metrikHesapla(noktalar); // hareket süresi, maks hız gerçekten hesaplanır
+    else{ // zaman damgası yok: mesafe/tırmanış hesaplanır, süre bilinmez
+      noktalar.forEach(p=>p[3]=simdi);
+      const tam=metrikHesapla(noktalar);
+      met={mesafe:tam.mesafe,tirmanis:tam.tirmanis,hareketSn:0,gecenSn:0,maxHiz:0,ortHiz:0};
+    }
+    const turGpx=(xml.querySelector("trk type")?.textContent||"").trim().toLowerCase();
+    const tip=TIP[turGpx]?turGpx
+      : /run|kos|koş/.test(turGpx)?"kosu"
+      : /hik|walk|yur|yür/.test(turGpx)?"yuruyus"
+      : /ski/.test(turGpx)?"kayak"
+      : /canoe|kayaking|paddl|row/.test(turGpx)?"kano":"bisiklet";
+    const ad=(xml.querySelector("trk name, metadata name")?.textContent?.trim()||f.name.replace(/\.gpx$/i,"")).slice(0,60);
+    const akt={id:"a"+Date.now(),ad,tip,tarih:noktalar[0][3],noktalar,...met};
     await dbYaz("aktiviteler",akt);
     // wpt'leri de al
     for(const w of xml.querySelectorAll("wpt")){
       const adW=w.querySelector("name")?.textContent||"";
       const tip=Object.entries(POI_TIP).find(([k,v])=>v.ad===adW)?.[0]||"not";
+      const wLat=parseFloat(w.getAttribute("lat")),wLng=parseFloat(w.getAttribute("lon"));
+      if(!isFinite(wLat)||!isFinite(wLng))continue;
       await dbYaz("pois",{id:"p"+Date.now()+Math.random().toString(36).slice(2,6),
-        lat:parseFloat(w.getAttribute("lat")),lng:parseFloat(w.getAttribute("lon")),
+        lat:wLat,lng:wLng,
         tip,not:w.querySelector("desc")?.textContent||"",tarih:Date.now()});}
     rotaListeCiz();poileriCiz();toast("GPX içe aktarıldı: "+ad);
   }catch(_){toast("GPX okunamadı");}
@@ -1569,7 +1598,7 @@ async function istatCiz(){
       dilimler.push([+d,+d+86400000]);dilimAd.push(["Pz","Pt","Sa","Ça","Pe","Cu","Ct"][d.getDay()]);}
     $("#istTarih").textContent="Son 7 gün";
   }else if(periyot==="hafta"){ // son 8 hafta
-    bas=new Date(simdi);bas.setDate(bas.getDate()-simdi.getDay()+1-49);bas.setHours(0,0,0,0);
+    bas=new Date(simdi);bas.setDate(bas.getDate()-(simdi.getDay()+6)%7-49);bas.setHours(0,0,0,0);
     for(let i=0;i<8;i++){const d=+bas+i*7*86400000;
       dilimler.push([d,d+7*86400000]);dilimAd.push(new Date(d).getDate()+" "+AY[new Date(d).getMonth()]);}
     $("#istTarih").textContent="Son 8 hafta";
@@ -1707,7 +1736,7 @@ window.addEventListener("pageshow",vpTazele);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden)vpTazele(); });
 
 /* =============== gezinme & başlangıç =============== */
-const SURUM="1.9.4";
+const SURUM="1.9.5";
 $("#nav").addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
   $$("#nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");
