@@ -1469,6 +1469,13 @@ async function senkronEt(sessiz){
     // 2) İNDİR: bulutta olup yerelde olmayan rotaları indir
     const bulut=await Bulut.getir("ptk_rotalar",{kullanici_id:u.id});
     const yerel=await dbTum("aktiviteler");
+    // bulut kopyası silinmiş (ör. tekilleştirme) yerel rotayı aynı yerel_id'li kayda yeniden bağla
+    const bulutVar=new Set(bulut.map(r=>r.id));
+    for(const a of yerel){
+      if(!a.bulutId||bulutVar.has(a.bulutId)||kalan.includes(a.bulutId))continue;
+      const es=bulut.find(r=>r.yerel_id===a.id);
+      if(es){a.bulutId=es.id;a.gizlilik=es.gizlilik;await dbYaz("aktiviteler",a);}
+    }
     const yerelIdler=new Set(yerel.map(a=>a.id));
     const bulutIdler=new Set(yerel.map(a=>a.bulutId).filter(Boolean));
     kalan.forEach(id=>bulutIdler.add(id)); // silinmeyi bekleyenleri geri indirme
