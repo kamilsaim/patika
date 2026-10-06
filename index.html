@@ -1848,6 +1848,7 @@ async function hesapSil(){
       }
     }catch(e){}
     localStorage.removeItem("patikaSync");
+    try{await dbSil("meta","silinenBulut");}catch(e){} // bulut verisi zaten gitti
     await Bulut.cikis();
     hesapCiz();
     if(data&&data.account_deleted===false)
@@ -1855,7 +1856,11 @@ async function hesapSil(){
         "Buluttaki tüm Patika verilerin silindi. Bu e-posta başka bir uygulamada da kullanıldığı için giriş hesabın açık bırakıldı; tümüyle silinmesini istersen saimkamil@gmail.com adresine yazabilirsin.");
     else toast("✔ Hesabın ve bulut verilerin silindi");
   }catch(err){
-    toast("Silinemedi: "+(err.message||"hata"));
+    // Edge Function 500 dönünce supabase-js yalnız "non-2xx status" der; asıl nedeni gövdeden oku
+    let neden=err.message||"hata";
+    try{const j=await err.context?.json?.(); if(j&&j.error)neden=j.error;}catch(_){}
+    console.error("[Patika] hesap silme:",err);
+    bilgiModal("Hesap silinemedi",esc(neden)+"<br><br>Tekrar dene; sürerse saimkamil@gmail.com adresine yaz.");
   }
 }
 $("#ayarSyncToggle").onclick=()=>{
